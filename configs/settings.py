@@ -14,19 +14,24 @@ class Settings(BaseSettings):
     reload: bool = False
 
     # 服务名称
-    service_name: str = "web-demo-service"
+    service_name: str = "live-check-service"
 
     # 环境
     env: str = os.environ.get("APP_ENV", "local")
 
     # mysql 地址
-    sync_db_uri: str = ""
-    async_db_uri: str = ""
+    playlist_db_uri: str = ""
+    neoailive_db_uri: str = ""
     db_echo: bool = False
 
     # 日志接收地址
     log_redis_uri: str = ""
     log_redis_key: str = ""
+
+    # es配置
+    es_host: str = ""
+    es_user: str = ""
+    es_password: str = ""
 
     # 从配置文件中重写settings参数
     project_root: str = os.path.abspath(

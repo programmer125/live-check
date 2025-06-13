@@ -6,32 +6,11 @@ import sys
 import json
 import socket
 from datetime import datetime
-from typing import Dict, Any
 
 from loguru import logger
 
 from configs.settings import settings
-from libs.redis_client import RedisManager
-
-
-class LogFilter(object):
-    def __init__(self):
-        self.redis_uri = settings.log_redis_uri
-        self.redis_key = settings.log_redis_key
-
-    def __call__(self, record: Dict[str, Any]) -> bool:
-        message = json.loads(record["message"])
-        message["log_level"] = record["level"].name
-        message["traceid"] = record["extra"].get("traceid", "")
-
-        # 写入redis
-        with RedisManager(self.redis_uri) as client:
-            client.rpush(self.redis_key, json.dumps(message))
-
-        record["message"] = message["message"]
-        if settings.env == "local":
-            return True
-        return False
+from libs.sync_remote_logger import LogFilter
 
 
 # 移除默认的处理器

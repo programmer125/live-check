@@ -11,15 +11,29 @@ from logging import LogRecord
 from datetime import datetime
 
 from configs.settings import settings
+from db.session import log_pool
 from libs.redis_client import RedisManager
 
 
-class RedisHandler(logging.Handler):
-    def __init__(self, redis_uri: str, redis_key: str):
-        super().__init__()
-        self.redis_uri = redis_uri
-        self.redis_key = redis_key
+class LogFilter(object):
+    def __call__(self, record: Dict[str, Any]) -> bool:
+        message = json.loads(record["message"])
+        message["log_level"] = record["level"].name
+        message["traceid"] = record["extra"].get("traceid", "")
 
+        # 写入redis
+        with RedisManager(log_pool) as client:
+            client.rpush(settings.log_redis_key, json.dumps(message))
+
+        record["message"] = message["message"]
+        if settings.env == "local":
+            return True
+        return False
+
+
+class RedisHandler(logging.Handler):
+    def __init__(self):
+        super().__init__()
         self.host = socket.gethostname()
         self.env = settings.env
 
@@ -45,8 +59,8 @@ class RedisHandler(logging.Handler):
             # 构建日志消息
             log = self.build_log(record)
             # 写入redis
-            with RedisManager(self.redis_uri) as client:
-                client.rpush(self.redis_key, json.dumps(log))
+            with RedisManager(log_pool) as client:
+                client.rpush(settings.log_redis_key, json.dumps(log))
         except Exception as e:
             print(f"Error writing to Redis: {str(e)}")
 
@@ -54,15 +68,14 @@ class RedisHandler(logging.Handler):
 class RoomLifespanLogger(logging.Logger):
     def __init__(self, name: str, level: int = logging.DEBUG):
         super().__init__(name, level)
-        self.redis_uri = settings.prod_log_redis_uri
-        self.redis_key = settings.prod_log_redis_key
 
         self.freeze_fields = {
-            "service_name": "mirror-room-lifespan",
+            "service_name": settings.room_lifespan_log_name,
+            "major_step": settings.lifespan_major_step,
         }
 
         # 添加处理器
-        handler = RedisHandler(self.redis_uri, self.redis_key)
+        handler = RedisHandler()
         self.addHandler(handler)
 
     def build_log(self, *args, **kwargs):
@@ -87,3 +100,8 @@ class RoomLifespanLogger(logging.Logger):
     def critical(self, *args, **kwargs):
         message = self.build_log(*args, **kwargs)
         super().critical(json.dumps(message))
+
+
+if __name__ == "__main__":
+    logger = RoomLifespanLogger(__file__)
+    logger.info("一条日志", traceid=123)
