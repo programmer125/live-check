@@ -155,15 +155,20 @@ class Check(object):
             )
 
             flag = False
+            ws_count = 0
             with open(self.log_file.format(room_id)) as f:
                 for line in f:
-                    if "发送音频" in line:
+                    if not flag and "发送音频" in line:
                         timestamp = re.findall(
                             "(\d+-\d+-\d+ \d+:\d+:\d+) | INFO", line
                         )[0]
                         print("开播时间：{}".format(timestamp))
                         flag = True
-                        break
+                    if "开启新接管" in line:
+                        ws_count += 1
+
+            if ws_count > 1:
+                print(f"推流存在多次断开：{ws_count}")
 
             if not flag:
                 print("推流未开播")
