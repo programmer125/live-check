@@ -2,6 +2,8 @@
 # @Author : duyuxuan
 # @Time : 2025/6/13 14:27
 # @File : check.py
+from datetime import datetime
+
 from configs.settings import settings
 from libs.sync_es_client import ESClient
 from libs.sync_mysql_client import MysqlClient
@@ -161,8 +163,46 @@ class Check(object):
 
         print("未检测到开播触发")
 
-    def check_room_file(self, room_id):
-        pass
+    def check_room_file(self, room):
+        # 本地推流
+        if room["push_type"] == 2:
+            # 查询最后一次开播
+            start_rooms = self.es_manager.search(
+                "room-lifespan",
+                body={
+                    "size": 100,
+                    "sort": [
+                        {"@timestamp": {"order": "asc", "unmapped_type": "boolean"}}
+                    ],
+                    "version": True,
+                    "query": {
+                        "bool": {
+                            "must": [],
+                            "filter": [
+                                {"match_phrase": {"room_id": room["bind_id"]}},
+                            ],
+                            "should": [],
+                            "must_not": [],
+                        }
+                    },
+                },
+            )
+            logs = self.es_manager.format_result(start_rooms)
+
+            local_ready_time = None
+            remote_ready_time = None
+            for log in logs:
+                if "推流成功" in log["message"]:
+                    local_ready_time = log["timestamp"]
+                if "local_push_ready_api调用成功" in log["message"]:
+                    remote_ready_time = log["timestamp"]
+
+            local_ready_time = datetime.strptime(local_ready_time, "%Y-%m-%d %H:%M:%S")
+            remote_ready_time = datetime.strptime(
+                remote_ready_time, "%Y-%m-%d %H:%M:%S"
+            )
+            if remote_ready_time < local_ready_time:
+                print("本地推流开播异常")
 
     def check_rt_room_file(self, room_id):
         pass
@@ -186,11 +226,20 @@ class Check(object):
 
         # 标准版
         if content["buy_version"] == 1:
-            self.check_room_file(room_id)
+            playlist_room = self.playlist_db.fetch_one(
+                "select * from playlist_control.room where bind_id = {}".format(room_id)
+            )
+            self.check_room_file(playlist_room)
         else:
-            self.check_rt_room_file(room_id)
+            playlist_room = self.playlist_db.fetch_one(
+                "select * from playlist_control.rt_room where bind_id = {}".format(
+                    room_id
+                )
+            )
+            self.check_rt_room_file(playlist_room)
 
 
 if __name__ == "__main__":
     # Check().check(6286)
-    Check().check(6576)
+    # Check().check(6576)
+    Check().check(6631)
