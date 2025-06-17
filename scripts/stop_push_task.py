@@ -2,9 +2,14 @@
 # @Author : duyuxuan
 # @Time : 2025/6/16 17:13
 # @File : stop_push_task.py
-import requests
+import sys
+from pathlib import Path
 from datetime import datetime, timedelta
 
+import requests
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+sys.path.append(str(BASE_DIR))
 from configs.settings import settings
 from libs.sync_es_client import ESClient
 from libs.sync_mysql_client import MysqlClient

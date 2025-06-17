@@ -2,8 +2,11 @@
 # @Author : duyuxuan
 # @Time : 2025/6/13 14:27
 # @File : check.py
-from datetime import datetime
+import sys
+from pathlib import Path
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+sys.path.append(str(BASE_DIR))
 from configs.settings import settings
 from libs.sync_es_client import ESClient
 from libs.sync_mysql_client import MysqlClient
