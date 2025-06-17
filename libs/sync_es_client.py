@@ -40,16 +40,7 @@ class ESClient:
 
         return result
 
-    def search(self, index: str, body: Dict) -> List:
-        response = self._make_request(
-            "GET",
-            f"/{index}-*/_search",
-            json=body,
-            headers={"Content-Type": "application/json"},
-        )
-        return self.format_result(response.json())
-
-    def search_count(self, index: str, body: Dict) -> int:
+    def search(self, index: str, body: Dict) -> [int, List]:
         response = self._make_request(
             "GET",
             f"/{index}-*/_search",
@@ -57,4 +48,7 @@ class ESClient:
             headers={"Content-Type": "application/json"},
         )
         data = response.json()
-        return data.get("hits", {})
+
+        total = data.get("hits", {}).get("total", {}).get("value", 0)
+
+        return total, self.format_result(response.json())

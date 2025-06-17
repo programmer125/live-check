@@ -30,8 +30,6 @@ class Check(object):
             return "未知"
 
     def check_auth(self, content_id):
-        print("直播检测")
-
         content = self.neo_db.fetch_one(
             "select name, outside_auth_id, buy_version from neoailive_db.n_room_content where id = {}".format(
                 content_id
@@ -59,7 +57,7 @@ class Check(object):
 
     def check_neo_start(self, room_id):
         # 查询最后一次开播
-        logs = self.es_manager.search(
+        _, logs = self.es_manager.search(
             "neoailive-api-service",
             body={
                 "size": 500,
@@ -104,7 +102,6 @@ class Check(object):
             },
         )
 
-        print("后端开播检测")
         if logs:
             for log in logs:
                 print("开播时间：{}".format(log["timestamp"]))
@@ -112,71 +109,119 @@ class Check(object):
 
         print("未检测到开播触发")
 
-    def check_playlist_start(self, room_id):
-        # 查询最后一次开播
-        logs = self.es_manager.search(
-            "room-lifespan",
-            body={
-                "size": 500,
-                "sort": [{"@timestamp": {"order": "desc", "unmapped_type": "boolean"}}],
-                "version": True,
-                "query": {
-                    "bool": {
-                        "must": [],
-                        "filter": [
-                            {
-                                "bool": {
-                                    "filter": [
-                                        {
-                                            "bool": {
-                                                "should": [
-                                                    {"match": {"room_id": str(room_id)}}
-                                                ],
-                                                "minimum_should_match": 1,
-                                            }
-                                        },
-                                        {
-                                            "multi_match": {
-                                                "type": "phrase",
-                                                "query": "start_push_api",
-                                                "lenient": True,
-                                            }
-                                        },
-                                    ]
-                                }
-                            }
+    def check_playlist_start(self, room_id, buy_version):
+        # 标准版
+        if buy_version == 1:
+            playlist_room = self.playlist_db.fetch_one(
+                "select * from playlist_control.room where bind_id = {}".format(room_id)
+            )
+
+            # 检测本地推流异常
+            if playlist_room["push_type"] == 2:
+                _, logs = self.es_manager.search(
+                    "room-lifespan",
+                    body={
+                        "size": 100,
+                        "sort": [
+                            {"@timestamp": {"order": "asc", "unmapped_type": "boolean"}}
                         ],
-                        "should": [],
-                        "must_not": [],
-                    }
-                },
-            },
-        )
+                        "version": True,
+                        "query": {
+                            "bool": {
+                                "must": [],
+                                "filter": [
+                                    {
+                                        "match_phrase": {
+                                            "room_id": playlist_room["bind_id"]
+                                        }
+                                    },
+                                ],
+                                "should": [],
+                                "must_not": [],
+                            }
+                        },
+                    },
+                )
 
-        print("播单开播检测")
-        if logs:
-            for log in logs:
-                print("开播时间：{}".format(log["timestamp"]))
-            return
+                local_ready_time = None
+                remote_ready_time = None
+                for log in logs:
+                    if "推流成功" in log["message"]:
+                        local_ready_time = log["timestamp"]
+                    if "local_push_ready_api调用成功" in log["message"]:
+                        remote_ready_time = log["timestamp"]
 
-        print("未检测到开播触发")
+                local_ready_time = datetime.strptime(
+                    local_ready_time, "%Y-%m-%d %H:%M:%S"
+                )
+                remote_ready_time = datetime.strptime(
+                    remote_ready_time, "%Y-%m-%d %H:%M:%S"
+                )
+                if remote_ready_time < local_ready_time:
+                    print("ERROR: 本地推流开播异常")
+        else:
+            playlist_room = self.playlist_db.fetch_one(
+                "select * from playlist_control.rt_room where bind_id = {}".format(
+                    room_id
+                )
+            )
 
-    def check_room_file(self, room):
-        # 检测本地推流开播
-        if room["push_type"] == 2:
-            logs = self.es_manager.search(
+        return playlist_room
+
+    def check_playlist_pop_bag(self, playlist_room, buy_version):
+        # 标准版
+        if buy_version == 1:
+            count, logs = self.es_manager.search(
                 "room-lifespan",
                 body={
-                    "size": 100,
+                    "size": 1,
                     "sort": [
-                        {"@timestamp": {"order": "asc", "unmapped_type": "boolean"}}
+                        {"@timestamp": {"order": "desc", "unmapped_type": "boolean"}}
                     ],
                     "version": True,
                     "query": {
                         "bool": {
                             "must": [],
                             "filter": [
-                                {"match_phrase": {"room_id": room["bind_id"]}},
+                                {
+                                    "bool": {
+                                        "filter": [
+                                            {
+                                                "bool": {
+                                                    "should": [
+                                                        {
+                                                            "match_phrase": {
+                                                                "room_id": playlist_room[
+                                                                    "bind_id"
+                                                                ]
+                                                            }
+                                                        }
+                                                    ],
+                                                    "minimum_should_match": 1,
+                                                }
+                                            },
+                                            {
+                                                "bool": {
+                                                    "should": [
+                                                        {
+                                                            "match_phrase": {
+                                                                "minor_step": "pop_sku"
+                                                            }
+                                                        }
+                                                    ],
+                                                    "minimum_should_match": 1,
+                                                }
+                                            },
+                                            {
+                                                "multi_match": {
+                                                    "type": "phrase",
+                                                    "query": "弹袋成功",
+                                                    "lenient": True,
+                                                }
+                                            },
+                                        ]
+                                    }
+                                },
                             ],
                             "should": [],
                             "must_not": [],
@@ -184,24 +229,15 @@ class Check(object):
                     },
                 },
             )
+        else:
+            count = 0
+            logs = []
 
-            local_ready_time = None
-            remote_ready_time = None
-            for log in logs:
-                if "推流成功" in log["message"]:
-                    local_ready_time = log["timestamp"]
-                if "local_push_ready_api调用成功" in log["message"]:
-                    remote_ready_time = log["timestamp"]
-
-            local_ready_time = datetime.strptime(local_ready_time, "%Y-%m-%d %H:%M:%S")
-            remote_ready_time = datetime.strptime(
-                remote_ready_time, "%Y-%m-%d %H:%M:%S"
-            )
-            if remote_ready_time < local_ready_time:
-                print("本地推流开播异常")
-
-    def check_rt_room_file(self, room_id):
-        pass
+        if count:
+            print(f"弹袋次数：{count}")
+            print(f"最后一次弹袋时间：{logs[0]['timestamp']}")
+        else:
+            print("弹袋次数：0")
 
     def check(self, room_id):
         neo_room = self.neo_db.fetch_one(
@@ -211,31 +247,37 @@ class Check(object):
             print("直播场次不存在")
             return
 
+        # 检测授权
+        print("授权检测")
         content = self.check_auth(neo_room["bind_content_id"])
         print()
 
+        # 检测neo开播
+        print("后端开播检测")
         self.check_neo_start(room_id)
         print()
 
-        self.check_playlist_start(room_id)
+        # 检测播单开播
+        print("播单控制开播检测")
+        playlist_room = self.check_playlist_start(room_id, content["buy_version"])
         print()
 
-        # 标准版
-        if content["buy_version"] == 1:
-            playlist_room = self.playlist_db.fetch_one(
-                "select * from playlist_control.room where bind_id = {}".format(room_id)
-            )
-            self.check_room_file(playlist_room)
-        else:
-            playlist_room = self.playlist_db.fetch_one(
-                "select * from playlist_control.rt_room where bind_id = {}".format(
-                    room_id
-                )
-            )
-            self.check_rt_room_file(playlist_room)
+        # 检测播单推流
+        print("弹袋监测")
+        self.check_playlist_pop_bag(playlist_room, content["buy_version"])
+        print()
+
+        # # 检测neo关播
+        # self.check_neo_stop(room_id)
+        #
+        # # 检测播单关播
+        # self.check_playlist_stop()
 
 
 if __name__ == "__main__":
     # Check().check(6286)
     # Check().check(6576)
-    Check().check(6631)
+    # 标准-开播异常
+    # Check().check(6631)
+    # 标准-正常
+    Check().check(6600)
