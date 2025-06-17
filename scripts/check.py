@@ -53,6 +53,8 @@ class Check(object):
         print("平台：{}".format(self.get_platform_name(outside_auth["platform_id"])))
         print("店铺：{}".format(outside_auth["shop_name"]))
 
+        return content
+
     def check_neo_start(self, room_id):
         # 查询最后一次开播
         start_rooms = self.es_manager.search(
@@ -99,11 +101,12 @@ class Check(object):
                 },
             },
         )
-        latest_start_room = self.es_manager.get_first_result(start_rooms)
+        rooms = self.es_manager.format_result(start_rooms)
 
         print("后端开播检测")
-        if latest_start_room:
-            print("开播时间：{}".format(latest_start_room["timestamp"]))
+        if rooms:
+            for room in rooms:
+                print("开播时间：{}".format(room["timestamp"]))
             return
 
         print("未检测到开播触发")
@@ -148,16 +151,20 @@ class Check(object):
                 },
             },
         )
-        latest_start_room = self.es_manager.get_first_result(start_rooms)
+        rooms = self.es_manager.format_result(start_rooms)
 
         print("播单开播检测")
-        if latest_start_room:
-            print("开播时间：{}".format(latest_start_room["timestamp"]))
+        if rooms:
+            for room in rooms:
+                print("开播时间：{}".format(room["timestamp"]))
             return
 
         print("未检测到开播触发")
 
-    def check_warm_file(self, room_id):
+    def check_room_file(self, room_id):
+        pass
+
+    def check_rt_room_file(self, room_id):
         pass
 
     def check(self, room_id):
@@ -168,7 +175,7 @@ class Check(object):
             print("直播场次不存在")
             return
 
-        self.check_shop_info(neo_room["bind_content_id"])
+        content = self.check_shop_info(neo_room["bind_content_id"])
         print()
 
         self.check_neo_start(room_id)
@@ -176,6 +183,12 @@ class Check(object):
 
         self.check_playlist_start(room_id)
         print()
+
+        # 标准版
+        if content["buy_version"] == 1:
+            self.check_room_file(room_id)
+        else:
+            self.check_rt_room_file(room_id)
 
 
 if __name__ == "__main__":

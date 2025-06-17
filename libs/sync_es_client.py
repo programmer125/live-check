@@ -33,10 +33,12 @@ class ESClient:
                 print(f"错误详情: {e.response.text}")
             raise
 
-    def get_first_result(self, data):
-        if len(data.get("hits", {}).get("hits", [])) > 0:
-            return data.get("hits", {}).get("hits", [])[0]["_source"]
-        return None
+    def format_result(self, data):
+        result = []
+        for elm in data.get("hits", {}).get("hits", []):
+            result.append(elm["_source"])
+
+        return result
 
     def search(self, index: str, body: Dict) -> Dict:
         response = self._make_request(
