@@ -116,49 +116,31 @@ class Check(object):
                 "select * from playlist_control.room where bind_id = {}".format(room_id)
             )
 
-            # 检测本地推流异常
-            if playlist_room["push_type"] == 2:
-                _, logs = self.es_manager.search(
-                    "room-lifespan",
-                    body={
-                        "size": 100,
-                        "sort": [
-                            {"@timestamp": {"order": "asc", "unmapped_type": "boolean"}}
-                        ],
-                        "version": True,
-                        "query": {
-                            "bool": {
-                                "must": [],
-                                "filter": [
-                                    {
-                                        "match_phrase": {
-                                            "room_id": playlist_room["bind_id"]
-                                        }
-                                    },
-                                ],
-                                "should": [],
-                                "must_not": [],
-                            }
-                        },
+            _, logs = self.es_manager.search(
+                "room-lifespan",
+                body={
+                    "size": 1,
+                    "sort": [
+                        {"@timestamp": {"order": "asc", "unmapped_type": "boolean"}}
+                    ],
+                    "version": True,
+                    "query": {
+                        "bool": {
+                            "must": [],
+                            "filter": [
+                                {"match_phrase": {"room_id": playlist_room["bind_id"]}},
+                                {"match_phrase": {"minor_step": "video_start"}},
+                            ],
+                            "should": [],
+                            "must_not": [],
+                        }
                     },
-                )
-
-                local_ready_time = None
-                remote_ready_time = None
-                for log in logs:
-                    if "推流成功" in log["message"]:
-                        local_ready_time = log["timestamp"]
-                    if "local_push_ready_api调用成功" in log["message"]:
-                        remote_ready_time = log["timestamp"]
-
-                local_ready_time = datetime.strptime(
-                    local_ready_time, "%Y-%m-%d %H:%M:%S"
-                )
-                remote_ready_time = datetime.strptime(
-                    remote_ready_time, "%Y-%m-%d %H:%M:%S"
-                )
-                if remote_ready_time < local_ready_time:
-                    print("ERROR: 本地推流开播异常")
+                },
+            )
+            if logs:
+                print("开播时间：{}".format(logs[0]["timestamp"]))
+            else:
+                print("推流未开播")
         else:
             playlist_room = self.playlist_db.fetch_one(
                 "select * from playlist_control.rt_room where bind_id = {}".format(
@@ -205,7 +187,7 @@ class Check(object):
                                                     "should": [
                                                         {
                                                             "match_phrase": {
-                                                                "minor_step": "pop_sku"
+                                                                "minor_step": "monitor_pop_bag_task"
                                                             }
                                                         }
                                                     ],
@@ -215,7 +197,14 @@ class Check(object):
                                             {
                                                 "multi_match": {
                                                     "type": "phrase",
-                                                    "query": "弹袋成功",
+                                                    "query": "触发弹袋",
+                                                    "lenient": True,
+                                                }
+                                            },
+                                            {
+                                                "multi_match": {
+                                                    "type": "phrase",
+                                                    "query": "success",
                                                     "lenient": True,
                                                 }
                                             },
@@ -239,6 +228,130 @@ class Check(object):
         else:
             print("弹袋次数：0")
 
+    def check_playlist_qa(self, playlist_room, buy_version):
+        # 标准版
+        if buy_version == 1:
+            count, logs = self.es_manager.search(
+                "room-lifespan",
+                body={
+                    "size": 5,
+                    "sort": [
+                        {"@timestamp": {"order": "desc", "unmapped_type": "boolean"}}
+                    ],
+                    "version": True,
+                    "query": {
+                        "bool": {
+                            "must": [],
+                            "filter": [
+                                {
+                                    "bool": {
+                                        "filter": [
+                                            {
+                                                "bool": {
+                                                    "should": [
+                                                        {
+                                                            "match": {
+                                                                "room_id": playlist_room[
+                                                                    "bind_id"
+                                                                ]
+                                                            }
+                                                        }
+                                                    ],
+                                                    "minimum_should_match": 1,
+                                                }
+                                            },
+                                            {
+                                                "bool": {
+                                                    "should": [
+                                                        {"match": {"video_type": 2}}
+                                                    ],
+                                                    "minimum_should_match": 1,
+                                                }
+                                            },
+                                        ]
+                                    }
+                                },
+                                {"match_phrase": {"minor_step": "video_start"}},
+                            ],
+                            "should": [],
+                            "must_not": [],
+                        }
+                    },
+                },
+            )
+        else:
+            count = 0
+            logs = []
+
+        if count:
+            print(f"强互动次数：{count}")
+            for log in logs:
+                print(f"强互动时间：{log['timestamp']}")
+        else:
+            print("强互动次数：0")
+
+    def check_playlist_atmosphere(self, playlist_room, buy_version):
+        # 标准版
+        if buy_version == 1:
+            count, logs = self.es_manager.search(
+                "room-lifespan",
+                body={
+                    "size": 5,
+                    "sort": [
+                        {"@timestamp": {"order": "desc", "unmapped_type": "boolean"}}
+                    ],
+                    "version": True,
+                    "query": {
+                        "bool": {
+                            "must": [],
+                            "filter": [
+                                {
+                                    "bool": {
+                                        "filter": [
+                                            {
+                                                "bool": {
+                                                    "should": [
+                                                        {
+                                                            "match": {
+                                                                "room_id": playlist_room[
+                                                                    "bind_id"
+                                                                ]
+                                                            }
+                                                        }
+                                                    ],
+                                                    "minimum_should_match": 1,
+                                                }
+                                            },
+                                            {
+                                                "bool": {
+                                                    "should": [
+                                                        {"match": {"video_type": 3}}
+                                                    ],
+                                                    "minimum_should_match": 1,
+                                                }
+                                            },
+                                        ]
+                                    }
+                                },
+                                {"match_phrase": {"minor_step": "video_start"}},
+                            ],
+                            "should": [],
+                            "must_not": [],
+                        }
+                    },
+                },
+            )
+        else:
+            count = 0
+            logs = []
+
+        if count:
+            print(f"弱互动次数：{count}")
+            for log in logs:
+                print(f"弱互动时间：{log['timestamp']}")
+        else:
+            print("弱互动次数：0")
+
     def check(self, room_id):
         neo_room = self.neo_db.fetch_one(
             "select * from neoailive_db.n_room where id = {}".format(room_id)
@@ -247,24 +360,28 @@ class Check(object):
             print("直播场次不存在")
             return
 
-        # 检测授权
         print("授权检测")
         content = self.check_auth(neo_room["bind_content_id"])
         print()
 
-        # 检测neo开播
         print("后端开播检测")
         self.check_neo_start(room_id)
         print()
 
-        # 检测播单开播
         print("播单控制开播检测")
         playlist_room = self.check_playlist_start(room_id, content["buy_version"])
         print()
 
-        # 检测播单推流
         print("弹袋监测")
         self.check_playlist_pop_bag(playlist_room, content["buy_version"])
+        print()
+
+        print("强互动监测")
+        self.check_playlist_qa(playlist_room, content["buy_version"])
+        print()
+
+        print("弱互动监测")
+        self.check_playlist_atmosphere(playlist_room, content["buy_version"])
         print()
 
         # # 检测neo关播
@@ -280,4 +397,4 @@ if __name__ == "__main__":
     # 标准-开播异常
     # Check().check(6631)
     # 标准-正常
-    Check().check(6600)
+    Check().check(6740)
