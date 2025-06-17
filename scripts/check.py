@@ -413,6 +413,174 @@ class Check(object):
         else:
             print("弱互动次数：0")
 
+    def check_neo_stop(self, playlist_room):
+        # 手动关播
+        _, logs = self.es_manager.search(
+            "neoailive-api-service",
+            body={
+                "size": 500,
+                "sort": [{"@timestamp": {"order": "desc", "unmapped_type": "boolean"}}],
+                "version": True,
+                "query": {
+                    "bool": {
+                        "must": [],
+                        "filter": [
+                            {
+                                "bool": {
+                                    "filter": [
+                                        {
+                                            "multi_match": {
+                                                "type": "phrase",
+                                                "query": "停止在播直播房间",
+                                                "lenient": True,
+                                            }
+                                        },
+                                        {
+                                            "multi_match": {
+                                                "type": "phrase",
+                                                "query": str(playlist_room["bind_id"]),
+                                                "lenient": True,
+                                            }
+                                        },
+                                    ]
+                                }
+                            },
+                        ],
+                        "should": [],
+                        "must_not": [],
+                    }
+                },
+            },
+        )
+
+        if logs:
+            for log in logs:
+                print("手动关播时间：{}".format(log["timestamp"]))
+            return
+
+        # 自动关播
+        _, logs = self.es_manager.search(
+            "neoailive-api-service",
+            body={
+                "size": 500,
+                "sort": [{"@timestamp": {"order": "desc", "unmapped_type": "boolean"}}],
+                "version": True,
+                "query": {
+                    "bool": {
+                        "must": [],
+                        "filter": [
+                            {
+                                "bool": {
+                                    "filter": [
+                                        {
+                                            "multi_match": {
+                                                "type": "phrase",
+                                                "query": "自动关闭直播",
+                                                "lenient": True,
+                                            }
+                                        },
+                                        {
+                                            "multi_match": {
+                                                "type": "phrase",
+                                                "query": str(playlist_room["bind_id"]),
+                                                "lenient": True,
+                                            }
+                                        },
+                                    ]
+                                }
+                            },
+                            {"match_phrase": {"traceid": "auto_close_live"}},
+                        ],
+                        "should": [],
+                        "must_not": [],
+                    }
+                },
+            },
+        )
+
+        if logs:
+            for log in logs:
+                print("自动关播时间：{}".format(log["timestamp"]))
+            return
+
+        # 第三方关播
+        _, logs = self.es_manager.search(
+            "living-assistant-service",
+            body={
+                "size": 500,
+                "sort": [{"@timestamp": {"order": "desc", "unmapped_type": "boolean"}}],
+                "version": True,
+                "query": {
+                    "bool": {
+                        "must": [],
+                        "filter": [
+                            {
+                                "bool": {
+                                    "filter": [
+                                        {
+                                            "multi_match": {
+                                                "type": "phrase",
+                                                "query": "直播间已关闭",
+                                                "lenient": True,
+                                            }
+                                        },
+                                        {
+                                            "multi_match": {
+                                                "type": "phrase",
+                                                "query": str(playlist_room["bind_id"]),
+                                                "lenient": True,
+                                            }
+                                        },
+                                    ]
+                                }
+                            },
+                            {"match_phrase": {"traceid": "check-close"}},
+                        ],
+                        "should": [],
+                        "must_not": [],
+                    }
+                },
+            },
+        )
+
+        if logs:
+            for log in logs:
+                print("第三方关播时间：{}".format(log["timestamp"]))
+            return
+
+        print("未检测到关播触发")
+
+    def check_playlist_stop(self, playlist_room, buy_version):
+        # 标准版
+        if buy_version == 1:
+            _, logs = self.es_manager.search(
+                "room-lifespan",
+                body={
+                    "size": 1,
+                    "sort": [
+                        {"@timestamp": {"order": "asc", "unmapped_type": "boolean"}}
+                    ],
+                    "version": True,
+                    "query": {
+                        "bool": {
+                            "must": [],
+                            "filter": [
+                                {"match_phrase": {"room_id": playlist_room["bind_id"]}},
+                                {"match_phrase": {"minor_step": "stop_push"}},
+                            ],
+                            "should": [],
+                            "must_not": [],
+                        }
+                    },
+                },
+            )
+            if logs:
+                print("推流结束时间：{}".format(logs[0]["timestamp"]))
+            else:
+                print("推流未结束")
+        else:
+            pass
+
     def check(self, room_id):
         neo_room = self.neo_db.fetch_one(
             "select * from neoailive_db.n_room where id = {}".format(room_id)
@@ -449,11 +617,15 @@ class Check(object):
         self.check_playlist_atmosphere(playlist_room, content["buy_version"])
         print()
 
-        # # 检测neo关播
-        # self.check_neo_stop(room_id)
-        #
-        # # 检测播单关播
-        # self.check_playlist_stop()
+        # 检测neo关播
+        print("后端关播检测")
+        self.check_neo_stop(playlist_room)
+        print()
+
+        # 检测播单关播
+        print("播单关播检测")
+        self.check_playlist_stop(playlist_room, content["buy_version"])
+        print()
 
 
 if __name__ == "__main__":
@@ -462,4 +634,4 @@ if __name__ == "__main__":
     # 标准-开播异常
     # Check().check(6631)
     # 标准-正常
-    Check().check(6795)
+    Check().check(6709)
