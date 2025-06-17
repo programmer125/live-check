@@ -415,6 +415,7 @@ class Check(object):
                     logs.append({"timestamp": timestamp})
 
             count = len(logs)
+            logs = logs[:5]
 
         if count:
             print(f"强互动次数：{count}")
@@ -485,6 +486,7 @@ class Check(object):
                     logs.append({"timestamp": timestamp})
 
             count = len(logs)
+            logs = logs[:5]
 
         if count:
             print(f"弱互动次数：{count}")
