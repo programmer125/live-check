@@ -150,6 +150,67 @@ class Check(object):
 
         return playlist_room
 
+    def check_third_live(self, playlist_room):
+        _, logs = self.es_manager.search(
+            "room-lifespan",
+            body={
+                "size": 1,
+                "sort": [{"@timestamp": {"order": "asc", "unmapped_type": "boolean"}}],
+                "version": True,
+                "query": {
+                    "bool": {
+                        "must": [],
+                        "filter": [
+                            {
+                                "multi_match": {
+                                    "type": "phrase",
+                                    "query": "update_live_id_api",
+                                    "lenient": True,
+                                }
+                            },
+                            {"match_phrase": {"room_id": playlist_room["bind_id"]}},
+                        ],
+                        "should": [],
+                        "must_not": [],
+                    }
+                },
+            },
+        )
+        if logs:
+            print("关联live_id时间：{}".format(logs[0]["timestamp"]))
+        else:
+            print("未关联live_id")
+
+        _, logs = self.es_manager.search(
+            "room-lifespan",
+            body={
+                "size": 1,
+                "sort": [{"@timestamp": {"order": "asc", "unmapped_type": "boolean"}}],
+                "version": True,
+                "query": {
+                    "bool": {
+                        "must": [],
+                        "filter": [
+                            {
+                                "multi_match": {
+                                    "type": "phrase",
+                                    "query": "update_cart_list_api",
+                                    "lenient": True,
+                                }
+                            },
+                            {"match_phrase": {"room_id": playlist_room["bind_id"]}},
+                        ],
+                        "should": [],
+                        "must_not": [],
+                    }
+                },
+            },
+        )
+        if logs:
+            print("关联cart_list时间：{}".format(logs[0]["timestamp"]))
+        else:
+            print("未关联cart_list")
+
     def check_playlist_pop_bag(self, playlist_room, buy_version):
         # 标准版
         if buy_version == 1:
@@ -372,6 +433,10 @@ class Check(object):
         playlist_room = self.check_playlist_start(room_id, content["buy_version"])
         print()
 
+        print("第三方直播关联检测")
+        self.check_third_live(playlist_room)
+        print()
+
         print("弹袋监测")
         self.check_playlist_pop_bag(playlist_room, content["buy_version"])
         print()
@@ -397,4 +462,4 @@ if __name__ == "__main__":
     # 标准-开播异常
     # Check().check(6631)
     # 标准-正常
-    Check().check(6740)
+    Check().check(6795)
