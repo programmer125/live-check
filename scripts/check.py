@@ -29,7 +29,7 @@ class Check(object):
         else:
             return "未知"
 
-    def check_shop_info(self, content_id):
+    def check_auth(self, content_id):
         print("直播检测")
 
         content = self.neo_db.fetch_one(
@@ -211,7 +211,7 @@ class Check(object):
             print("直播场次不存在")
             return
 
-        content = self.check_shop_info(neo_room["bind_content_id"])
+        content = self.check_auth(neo_room["bind_content_id"])
         print()
 
         self.check_neo_start(room_id)
