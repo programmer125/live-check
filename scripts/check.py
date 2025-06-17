@@ -305,8 +305,47 @@ class Check(object):
                 },
             )
         else:
-            count = 0
-            logs = []
+            count, logs = self.es_manager.search(
+                "room-lifespan",
+                body={
+                    "size": 1,
+                    "sort": [
+                        {"@timestamp": {"order": "desc", "unmapped_type": "boolean"}}
+                    ],
+                    "version": True,
+                    "query": {
+                        "bool": {
+                            "must": [],
+                            "filter": [
+                                {
+                                    "bool": {
+                                        "filter": [
+                                            {
+                                                "multi_match": {
+                                                    "type": "phrase",
+                                                    "query": "触发弹袋",
+                                                    "lenient": True,
+                                                }
+                                            },
+                                            {
+                                                "multi_match": {
+                                                    "type": "phrase",
+                                                    "query": "success",
+                                                    "lenient": True,
+                                                }
+                                            },
+                                        ]
+                                    }
+                                },
+                                {"match_phrase": {"minor_step": "pushing_room"}},
+                                {"match_phrase": {"room_id": playlist_room["bind_id"]}},
+                            ],
+                            "should": [],
+                            "must_not": [],
+                        }
+                    },
+                },
+            )
 
         if count:
             print(f"弹袋次数：{count}")
