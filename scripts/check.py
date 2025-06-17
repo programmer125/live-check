@@ -405,8 +405,16 @@ class Check(object):
                 },
             )
         else:
-            count = 0
             logs = []
+            with open(self.log_file.format(playlist_room["bind_id"])) as f:
+                for line in f:
+                    if "发送音频 强互动" not in line:
+                        continue
+
+                    timestamp = re.findall("(\d+-\d+-\d+ \d+:\d+:\d+) | INFO", line)[0]
+                    logs.append({"timestamp": timestamp})
+
+            count = len(logs)
 
         if count:
             print(f"强互动次数：{count}")
@@ -467,8 +475,16 @@ class Check(object):
                 },
             )
         else:
-            count = 0
             logs = []
+            with open(self.log_file.format(playlist_room["bind_id"])) as f:
+                for line in f:
+                    if "发送音频 弱互动" not in line:
+                        continue
+
+                    timestamp = re.findall("(\d+-\d+-\d+ \d+:\d+:\d+) | INFO", line)[0]
+                    logs.append({"timestamp": timestamp})
+
+            count = len(logs)
 
         if count:
             print(f"弱互动次数：{count}")
@@ -700,4 +716,4 @@ if __name__ == "__main__":
     # 标准-正常
     # Check().check(6709)
     # 实时-正常
-    Check().check(6804)
+    Check().check(6707)
