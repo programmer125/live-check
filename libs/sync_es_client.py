@@ -2,7 +2,7 @@
 # @Author : duyuxuan
 # @Time : 2025/6/12 17:48
 # @File : sync_es_client.py
-from typing import Dict
+from typing import Dict, List
 
 import requests
 
@@ -40,11 +40,21 @@ class ESClient:
 
         return result
 
-    def search(self, index: str, body: Dict) -> Dict:
+    def search(self, index: str, body: Dict) -> List:
         response = self._make_request(
             "GET",
             f"/{index}-*/_search",
             json=body,
             headers={"Content-Type": "application/json"},
         )
-        return response.json()
+        return self.format_result(response.json())
+
+    def search_count(self, index: str, body: Dict) -> int:
+        response = self._make_request(
+            "GET",
+            f"/{index}-*/_search",
+            json=body,
+            headers={"Content-Type": "application/json"},
+        )
+        data = response.json()
+        return data.get("hits", {})

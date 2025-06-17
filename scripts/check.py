@@ -59,7 +59,7 @@ class Check(object):
 
     def check_neo_start(self, room_id):
         # 查询最后一次开播
-        start_rooms = self.es_manager.search(
+        logs = self.es_manager.search(
             "neoailive-api-service",
             body={
                 "size": 500,
@@ -103,19 +103,18 @@ class Check(object):
                 },
             },
         )
-        rooms = self.es_manager.format_result(start_rooms)
 
         print("后端开播检测")
-        if rooms:
-            for room in rooms:
-                print("开播时间：{}".format(room["timestamp"]))
+        if logs:
+            for log in logs:
+                print("开播时间：{}".format(log["timestamp"]))
             return
 
         print("未检测到开播触发")
 
     def check_playlist_start(self, room_id):
         # 查询最后一次开播
-        start_rooms = self.es_manager.search(
+        logs = self.es_manager.search(
             "room-lifespan",
             body={
                 "size": 500,
@@ -153,21 +152,19 @@ class Check(object):
                 },
             },
         )
-        rooms = self.es_manager.format_result(start_rooms)
 
         print("播单开播检测")
-        if rooms:
-            for room in rooms:
-                print("开播时间：{}".format(room["timestamp"]))
+        if logs:
+            for log in logs:
+                print("开播时间：{}".format(log["timestamp"]))
             return
 
         print("未检测到开播触发")
 
     def check_room_file(self, room):
-        # 本地推流
+        # 检测本地推流开播
         if room["push_type"] == 2:
-            # 查询最后一次开播
-            start_rooms = self.es_manager.search(
+            logs = self.es_manager.search(
                 "room-lifespan",
                 body={
                     "size": 100,
@@ -187,7 +184,6 @@ class Check(object):
                     },
                 },
             )
-            logs = self.es_manager.format_result(start_rooms)
 
             local_ready_time = None
             remote_ready_time = None
