@@ -661,7 +661,42 @@ class Check(object):
             else:
                 print("推流未结束")
         else:
-            pass
+            _, logs = self.es_manager.search(
+                "room-lifespan",
+                body={
+                    "size": 1,
+                    "sort": [
+                        {"@timestamp": {"order": "asc", "unmapped_type": "boolean"}}
+                    ],
+                    "version": True,
+                    "query": {
+                        "bool": {
+                            "must": [],
+                            "filter": [
+                                {
+                                    "multi_match": {
+                                        "type": "phrase",
+                                        "query": "关闭直播成功",
+                                        "lenient": True,
+                                    }
+                                },
+                                {"match_phrase": {"room_id": playlist_room["bind_id"]}},
+                                {
+                                    "match_phrase": {
+                                        "minor_step": "monitor_pushing_room"
+                                    }
+                                },
+                            ],
+                            "should": [],
+                            "must_not": [],
+                        }
+                    },
+                },
+            )
+            if logs:
+                print("推流结束时间：{}".format(logs[0]["timestamp"]))
+            else:
+                print("推流未结束")
 
     def check(self, room_id):
         neo_room = self.neo_db.fetch_one(
