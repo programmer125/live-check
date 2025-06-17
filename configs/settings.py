@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     # 停止推流任务api
     stop_push_task_api: str = ""
 
+    # 实时版推流日志路径
+    log_path: str = "/root/rt-playlist-control/logs"
+
     # 从配置文件中重写settings参数
     project_root: str = os.path.abspath(
         os.path.join(os.path.dirname(__file__), os.pardir)

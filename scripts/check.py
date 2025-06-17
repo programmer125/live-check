@@ -2,6 +2,7 @@
 # @Author : duyuxuan
 # @Time : 2025/6/13 14:27
 # @File : check.py
+import re
 import sys
 from pathlib import Path
 
@@ -19,6 +20,8 @@ class Check(object):
         )
         self.neo_db = MysqlClient(settings.neoailive_db_uri)
         self.playlist_db = MysqlClient(settings.playlist_db_uri)
+
+        self.log_file = settings.log_path + "/start_room_{}.log"
 
     def get_platform_name(self, platform_id):
         if platform_id == 1:
@@ -150,6 +153,20 @@ class Check(object):
                     room_id
                 )
             )
+
+            flag = False
+            with open(self.log_file.format(room_id)) as f:
+                for line in f:
+                    if "发送音频" in line:
+                        timestamp = re.findall(
+                            "(\d+-\d+-\d+ \d+:\d+:\d+) | INFO", line
+                        )[0]
+                        print("开播时间：{}".format(timestamp))
+                        flag = True
+                        break
+
+            if not flag:
+                print("推流未开播")
 
         return playlist_room
 
@@ -637,4 +654,6 @@ if __name__ == "__main__":
     # 标准-开播异常
     # Check().check(6631)
     # 标准-正常
-    Check().check(6709)
+    # Check().check(6709)
+    # 实时-正常
+    Check().check(6804)
