@@ -22,13 +22,13 @@ class MysqlClient(object):
             results = response.mappings().all()
             return results[0]
 
-    def exec_sql(self, sql):
+    def fetch_all(self, sql):
         with self.engine.connect() as conn:
             response = conn.execute(text(sql))
             results = response.mappings().all()
             return results
 
-    def exec_cnt_sql(self, sql):
+    def fetch_count(self, sql):
         with self.engine.connect() as conn:
             response = conn.execute(text(sql))
             results = response.mappings().all()
