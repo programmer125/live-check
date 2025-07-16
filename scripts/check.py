@@ -160,7 +160,7 @@ class Check(object):
                 for line in f:
                     if not flag and "发送音频" in line:
                         timestamp = re.findall(
-                            "(\d+-\d+-\d+ \d+:\d+:\d+) | INFO", line
+                            "(\d+-\d+ \d+:\d+:\d+) | INFO", line
                         )[0]
                         print("开播时间：{}".format(timestamp))
                         flag = True
@@ -411,7 +411,7 @@ class Check(object):
                     if "发送音频 强互动" not in line:
                         continue
 
-                    timestamp = re.findall("(\d+-\d+-\d+ \d+:\d+:\d+) | INFO", line)[0]
+                    timestamp = re.findall("(\d+-\d+ \d+:\d+:\d+) | INFO", line)[0]
                     logs.append({"timestamp": timestamp})
 
             count = len(logs)
@@ -482,7 +482,7 @@ class Check(object):
                     if "发送音频 弱互动" not in line:
                         continue
 
-                    timestamp = re.findall("(\d+-\d+-\d+ \d+:\d+:\d+) | INFO", line)[0]
+                    timestamp = re.findall("(\d+-\d+ \d+:\d+:\d+) | INFO", line)[0]
                     logs.append({"timestamp": timestamp})
 
             count = len(logs)
