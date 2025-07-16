@@ -753,4 +753,5 @@ if __name__ == "__main__":
     # 标准-正常
     # Check().check(6709)
     # 实时-正常
-    Check().check(6707)
+
+    Check().check(int(sys.argv[1]))
