@@ -94,7 +94,7 @@ class MonitorAllRooms(object):
 
         return result
 
-    def check_running(self):
+    def get_records(self):
         # 查询非结束的直播间
         neo_rooms = self.get_neo_rooms()
         # 查询关联的直播内容
@@ -112,6 +112,7 @@ class MonitorAllRooms(object):
             if neo_room["live_real_status"] == 20:
                 running_content_ids.append(neo_room["bind_content_id"])
 
+        result = []
         for neo_room in neo_rooms:
             neo_content = neo_contents.get(neo_room["bind_content_id"], {})
             playlist_room = playlist_rooms.get(neo_room["id"], {})
@@ -124,22 +125,28 @@ class MonitorAllRooms(object):
             ):
                 neo_content["live_status"] = 25
 
-            print(
-                neo_room["id"],
-                neo_room["status"],
-                neo_room.get("live_real_status"),
-                neo_content.get("status"),
-                neo_content.get("live_status"),
-                playlist_room.get("push_status"),
-                neo_room["start_time"],
-                neo_room["end_time"],
-                neo_room["live_id"],
-                playlist_room.get("live_id"),
-                playlist_room.get("live_url"),
+            result.append(
+                {
+                    "room_id": neo_room["id"],
+                    "room_status": neo_room["status"],
+                    "room_live_status": neo_room.get("live_real_status"),
+                    "room_start_time": neo_room["start_time"],
+                    "room_end_time": neo_room["end_time"],
+                    "room_live_id": neo_room["live_id"],
+                    "content_status": neo_content.get("status"),
+                    "content_live_status": neo_content.get("live_status"),
+                    "playlist_push_status": playlist_room.get("push_status"),
+                    "playlist_live_id": playlist_room.get("live_id"),
+                    "playlist_live_url": playlist_room.get("live_url"),
+                }
             )
 
+        return result
+
     def run(self):
-        self.check_running()
+        records = self.get_records()
+        for elm in records:
+            print(elm)
 
 
 if __name__ == "__main__":
