@@ -2,14 +2,13 @@
 # @Author : duyuxuan
 # @Time : 2025/8/20 11:35
 # @File : monitor_all_rooms.py
+import crud
 from db.session import PlaylistSessionLocal, NeoailiveSessionLocal
 from libs.sync_mysql_client import MysqlClient
 
 
 class MonitorAllRooms(object):
     def __init__(self):
-        self.start_time = "2025-08-20 11:35:00"
-
         self.playlist_session = PlaylistSessionLocal()
         self.playlist_client = MysqlClient(self.playlist_session)
 
@@ -52,6 +51,13 @@ class MonitorAllRooms(object):
             f"SELECT * FROM neoailive_db.n_room_content where id in ({content_ids})"
         )
         return {elm["id"]: dict(elm) for elm in contents}
+
+    def get_neo_auths(self, auth_ids):
+        auth_ids = ",".join([str(elm) for elm in auth_ids])
+        auths = self.neoailive_client.fetch_all(
+            f"SELECT * FROM neoailive_db.n_outside_auth where id in ({auth_ids})"
+        )
+        return {elm["id"]: dict(elm) for elm in auths}
 
     def convert_stander_status(self, status):
         # 1 初始化、2 已推流、3 结束推流、4 废弃
@@ -101,6 +107,10 @@ class MonitorAllRooms(object):
         neo_contents = self.get_neo_contents(
             [room["bind_content_id"] for room in neo_rooms]
         )
+        # 查询关联的授权信息
+        neo_auths = self.get_neo_auths(
+            [elm["outside_auth_id"] for elm in neo_contents.values()]
+        )
         # 查询关联的推流列表
         playlist_rooms = self.get_playlist_room_by_bind_id(
             [room["id"] for room in neo_rooms]
@@ -115,6 +125,7 @@ class MonitorAllRooms(object):
         result = []
         for neo_room in neo_rooms:
             neo_content = neo_contents.get(neo_room["bind_content_id"], {})
+            neo_auth = neo_auths.get(neo_content["outside_auth_id"], {})
             playlist_room = playlist_rooms.get(neo_room["id"], {})
 
             # 直播间是定时中，直播内容如果确实是直播中，则修改状态
@@ -133,11 +144,14 @@ class MonitorAllRooms(object):
                     "room_start_time": neo_room["start_time"],
                     "room_end_time": neo_room["end_time"],
                     "room_live_id": neo_room["live_id"],
+                    "content_id": neo_content.get("id"),
                     "content_status": neo_content.get("status"),
                     "content_live_status": neo_content.get("live_status"),
                     "playlist_push_status": playlist_room.get("push_status"),
                     "playlist_live_id": playlist_room.get("live_id"),
                     "playlist_live_url": playlist_room.get("live_url"),
+                    "auth_shop_name": neo_auth.get("shop_name"),
+                    "auth_short_name": neo_auth.get("short_name"),
                 }
             )
 
@@ -147,6 +161,7 @@ class MonitorAllRooms(object):
         records = self.get_records()
         for elm in records:
             print(elm)
+            crud.neo_live_check.create(data=elm)
 
 
 if __name__ == "__main__":
