@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     service_name: str = "live-check-service"
 
     # 环境
-    env: str = os.environ.get("APP_ENV", "local")
+    env: str = os.environ.get("LIVE_CHECK_ENV", "local")
 
     # mysql 地址
     playlist_db_uri: str = ""
