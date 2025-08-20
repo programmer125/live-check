@@ -120,9 +120,12 @@ class MonitorAllRooms(object):
 
         # 统计正在直播中的直播内容
         running_content_ids = []
+        scheduled_content_ids = []
         for neo_room in neo_rooms:
             if neo_room["live_real_status"] == 20:
                 running_content_ids.append(neo_room["bind_content_id"])
+            if neo_room["live_real_status"] == 25:
+                scheduled_content_ids.append(neo_room["bind_content_id"])
 
         result = []
         for neo_room in neo_rooms:
@@ -137,6 +140,14 @@ class MonitorAllRooms(object):
                 and neo_room["bind_content_id"] in running_content_ids
             ):
                 neo_content["live_status"] = 25
+
+            # 直播间是结束，直播内容是定时中，则修改状态
+            if (
+                neo_room["live_real_status"] == 40
+                and neo_content.get("live_status") == 25
+                and neo_room["bind_content_id"] in scheduled_content_ids
+            ):
+                neo_content["live_status"] = 40
 
             result.append(
                 {
