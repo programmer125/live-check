@@ -2,8 +2,12 @@
 # @Author : duyuxuan
 # @Time : 2025/8/20 11:35
 # @File : monitor_all_rooms.py
+import sys
+from pathlib import Path
 from datetime import datetime, timedelta
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+sys.path.append(str(BASE_DIR))
 import crud
 from db.session import PlaylistSessionLocal, NeoailiveSessionLocal
 from libs.sync_mysql_client import MysqlClient
