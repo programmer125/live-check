@@ -16,12 +16,35 @@ class MonitorAllRooms(object):
         self.neoailive_session = NeoailiveSessionLocal()
         self.neoailive_client = MysqlClient(self.neoailive_session)
 
-    # 查找销销所有未关闭的直播
+    # 查找销销所有未关闭的直播，与推流未结束的直播间，取并集
     def get_neo_rooms(self):
+        stander_rooms = self.playlist_client.fetch_all(
+            "SELECT bind_id FROM playlist_control.room where status not in (3, 4)"
+        )
+        realtime_rooms = self.playlist_client.fetch_all(
+            "SELECT bind_id FROM playlist_control.rt_room where status not in (4, 5, 10)"
+        )
+        pushing_bind_ids = []
+        for room in stander_rooms + realtime_rooms:
+            pushing_bind_ids.append(room["bind_id"])
+
         neo_rooms = self.neoailive_client.fetch_all(
             "SELECT * FROM neoailive_db.n_room where live_real_status not in (40, 80) and `status` = 0"
         )
-        return [dict(elm) for elm in neo_rooms]
+        result = [dict(elm) for elm in neo_rooms]
+
+        extra_bind_ids = list(
+            set(pushing_bind_ids) - set([elm["id"] for elm in result])
+        )
+        if extra_bind_ids:
+            bind_ids = ",".join([str(elm) for elm in extra_bind_ids])
+            neo_rooms = self.neoailive_client.fetch_all(
+                f"SELECT * FROM neoailive_db.n_room where id in ({bind_ids})"
+            )
+            for elm in neo_rooms:
+                result.append(dict(elm))
+
+        return result
 
     def get_neo_contents(self, content_ids):
         content_ids = ",".join([str(elm) for elm in content_ids])
@@ -72,23 +95,47 @@ class MonitorAllRooms(object):
         return result
 
     def check_running(self):
+        # 查询非结束的直播间
         neo_rooms = self.get_neo_rooms()
+        # 查询关联的直播内容
         neo_contents = self.get_neo_contents(
             [room["bind_content_id"] for room in neo_rooms]
         )
+        # 查询关联的推流列表
         playlist_rooms = self.get_playlist_room_by_bind_id(
             [room["id"] for room in neo_rooms]
         )
+
+        # 统计正在直播中的直播内容
+        running_content_ids = []
+        for neo_room in neo_rooms:
+            if neo_room["live_real_status"] == 20:
+                running_content_ids.append(neo_room["bind_content_id"])
+
         for neo_room in neo_rooms:
             neo_content = neo_contents.get(neo_room["bind_content_id"], {})
             playlist_room = playlist_rooms.get(neo_room["id"], {})
 
+            # 直播间是定时中，直播内容如果确实是直播中，则修改状态
+            if (
+                neo_room["live_real_status"] == 25
+                and neo_content.get("live_status") == 20
+                and neo_room["bind_content_id"] in running_content_ids
+            ):
+                neo_content["live_status"] = 25
+
             print(
                 neo_room["id"],
+                neo_room["status"],
                 neo_room.get("live_real_status"),
                 neo_content.get("status"),
                 neo_content.get("live_status"),
-                playlist_room.get("status"),
+                playlist_room.get("push_status"),
+                neo_room["start_time"],
+                neo_room["end_time"],
+                neo_room["live_id"],
+                playlist_room.get("live_id"),
+                playlist_room.get("live_url"),
             )
 
     def run(self):
