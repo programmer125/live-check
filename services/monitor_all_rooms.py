@@ -3,6 +3,7 @@
 # @Time : 2025/8/20 11:35
 # @File : monitor_all_rooms.py
 import sys
+from time import sleep
 from pathlib import Path
 from datetime import datetime, timedelta
 
@@ -229,4 +230,7 @@ class MonitorAllRooms(object):
 
 
 if __name__ == "__main__":
-    MonitorAllRooms().run()
+    while True:
+        MonitorAllRooms().run()
+
+        sleep(600)
