@@ -197,6 +197,9 @@ class MonitorAllRooms(object):
             if errors:
                 elm["is_error"] = 1
                 elm["error_msg"] = "\n".join(errors)
+            else:
+                elm["is_error"] = 0
+                elm["error_msg"] = ""
 
             if elm["room_id"] in history_record_ids:
                 crud.neo_live_check.update_by_condition(
