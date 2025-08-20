@@ -2,6 +2,8 @@
 # @Author : duyuxuan
 # @Time : 2025/8/20 11:35
 # @File : monitor_all_rooms.py
+from datetime import datetime, timedelta
+
 import crud
 from db.session import PlaylistSessionLocal, NeoailiveSessionLocal
 from libs.sync_mysql_client import MysqlClient
@@ -158,10 +160,54 @@ class MonitorAllRooms(object):
         return result
 
     def run(self):
+        # 最新记录
         records = self.get_records()
+
+        # 历史记录
+        history_records = crud.neo_live_check.fetch_all(fields=["room_id"], status=0)
+        history_record_ids = {elm["room_id"] for elm in history_records}
+
+        # 逐条分析
+        new_record_ids = []
         for elm in records:
-            print(elm)
-            crud.neo_live_check.create(data=elm)
+            new_record_ids.append(elm["room_id"])
+
+            errors = []
+            try:
+                if elm["room_status"]:
+                    errors.append("销销直播间已删除")
+                if elm["content_status"]:
+                    errors.append("销销直播内容已删除")
+                if elm["room_live_status"] != elm["content_live_status"]:
+                    errors.append("销销直播内容与直播间状态不一致")
+                if elm["room_live_status"] == 20 and elm["playlist_push_status"] != 2:
+                    errors.append("直播正常但推流异常")
+                if elm["playlist_push_status"] == 2 and elm["room_live_status"] != 20:
+                    errors.append("推流正常单直播异常")
+                if elm["room_live_status"] == 25:
+                    if elm["room_start_time"] < datetime.now():
+                        errors.append("定时的开始时间已过期")
+                    if elm["room_end_time"] < elm["room_start_time"] + timedelta(
+                        minutes=60
+                    ):
+                        errors.append("预定的直播时间过短")
+            except Exception as exc:
+                errors.append(str(exc))
+
+            if errors:
+                elm["is_error"] = 1
+                elm["error_msg"] = "\n".join(errors)
+
+            if elm["room_id"] in history_record_ids:
+                crud.neo_live_check.update_by_condition(
+                    room_id=elm["room_id"], data=elm
+                )
+            else:
+                crud.neo_live_check.create(data=elm)
+
+        # 删除状态正常的已结束直播间
+        for room_id in set(history_record_ids) - set(new_record_ids):
+            crud.neo_live_check.update_by_condition(room_id=room_id, data={"status": 1})
 
 
 if __name__ == "__main__":
