@@ -22,6 +22,7 @@ class NeoLiveCheck(Base):
     content_id = Column(Integer, nullable=True, comment="绑定内容ID")
     content_status = Column(Integer, nullable=True, comment="绑定内容ID")
     content_live_status = Column(Integer, nullable=True, comment="绑定内容ID")
+    content_is_rt = Column(SmallInteger, default=0, comment="状态：0正常；1删除")
     playlist_push_status = Column(Integer, nullable=True, comment="绑定内容ID")
     playlist_live_id = Column(String(128), default="", comment="直播间标题")
     playlist_live_url = Column(String(255), default="", comment="直播间标题")
@@ -30,6 +31,7 @@ class NeoLiveCheck(Base):
     auth_short_name = Column(String(255), default="", comment="直播间标题")
     is_error = Column(Integer, nullable=True, comment="绑定内容ID")
     error_msg = Column(String(255), default="", comment="直播间标题")
+    is_ignore = Column(SmallInteger, default=0, comment="状态：0正常；1删除")
     status = Column(SmallInteger, default=0, comment="状态：0正常；1删除")
     create_time = Column(
         TIMESTAMP, server_default=text("CURRENT_TIMESTAMP"), comment="创建时间"
