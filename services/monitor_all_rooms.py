@@ -34,8 +34,9 @@ class MonitorAllRooms(object):
         for room in stander_rooms + realtime_rooms:
             pushing_bind_ids.append(room["bind_id"])
 
+        # 2025-08-20 手动将所有异常状态回正，这之前的弃播不再处理
         neo_rooms = self.neoailive_client.fetch_all(
-            "SELECT * FROM neoailive_db.n_room where live_real_status not in (40, 80) and `status` = 0"
+            "SELECT * FROM neoailive_db.n_room where live_real_status != 40 and `status` = 0 and create_time > '2025-08-20'"
         )
         result = [dict(elm) for elm in neo_rooms]
 
@@ -168,6 +169,7 @@ class MonitorAllRooms(object):
                     "playlist_push_status": playlist_room.get("push_status"),
                     "playlist_live_id": playlist_room.get("live_id"),
                     "playlist_live_url": playlist_room.get("live_url"),
+                    "auth_platform_id": neo_auth.get("platform_id"),
                     "auth_shop_name": neo_auth.get("shop_name"),
                     "auth_short_name": neo_auth.get("short_name"),
                 }
