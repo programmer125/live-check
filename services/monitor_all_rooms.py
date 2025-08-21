@@ -7,11 +7,17 @@ from time import sleep
 from pathlib import Path
 from datetime import datetime, timedelta
 
+import loguru
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.append(str(BASE_DIR))
 import crud
 from db.session import PlaylistSessionLocal, NeoailiveSessionLocal
 from libs.sync_mysql_client import MysqlClient
+from libs.log_client import Logger
+
+
+logger = Logger(__file__)
 
 
 class MonitorAllRooms(object):
@@ -202,6 +208,8 @@ class MonitorAllRooms(object):
                     errors.append("直播正常但推流异常")
                 if elm["playlist_push_status"] == 2 and elm["room_live_status"] != 20:
                     errors.append("推流正常单直播异常")
+                if elm["room_live_id"] != elm["playlist_live_id"]:
+                    errors.append("销销直播间live_id与推流live_id不一致")
                 if elm["room_live_status"] == 25:
                     if elm["room_start_time"] < datetime.now():
                         errors.append("定时的开始时间已过期")
@@ -226,13 +234,19 @@ class MonitorAllRooms(object):
             else:
                 crud.neo_live_check.create(data=elm)
 
+        logger.info(f"检测直播间 {len(records)} 个")
+
         # 删除状态正常的已结束直播间
-        for room_id in set(history_record_ids) - set(new_record_ids):
+        ignore_room_ids = set(history_record_ids) - set(new_record_ids)
+        for room_id in ignore_room_ids:
             crud.neo_live_check.update_by_condition(room_id=room_id, data={"status": 1})
+
+        logger.info(f"忽略直播间 {len(ignore_room_ids)} 个")
 
 
 if __name__ == "__main__":
     while True:
-        MonitorAllRooms().run()
+        with loguru.logger.contextualize(traceid="monitor_all_rooms"):
+            MonitorAllRooms().run()
 
-        sleep(600)
+        sleep(300)

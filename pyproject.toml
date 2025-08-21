@@ -13,6 +13,7 @@ sqlalchemy = "^2.0.41"
 pymysql = "^1.1.1"
 aioredis = "^2.0.1"
 redis = "^6.4.0"
+loguru = "^0.7.3"
 
 
 [build-system]
