@@ -12,8 +12,10 @@ import loguru
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.append(str(BASE_DIR))
+from configs.settings import settings
 import crud
 from db.session import PlaylistSessionLocal, NeoailiveSessionLocal
+from libs.sync_es_client import ESClient
 from libs.sync_mysql_client import MysqlClient
 from libs.log_client import Logger
 
@@ -28,6 +30,10 @@ class MonitorAllRooms(object):
 
         self.neoailive_session = NeoailiveSessionLocal()
         self.neoailive_client = MysqlClient(self.neoailive_session)
+
+        self.es_manager = ESClient(
+            host=settings.es_host, user=settings.es_user, password=settings.es_password
+        )
 
     # 查找销销所有未关闭的直播，与推流未结束的直播间，取并集
     def get_neo_rooms(self):
@@ -115,6 +121,50 @@ class MonitorAllRooms(object):
 
         return result
 
+    def check_manual_stop(self, room_id):
+        # 查询最后一次开播
+        count, logs = self.es_manager.search(
+            "neoailive-api-service",
+            body={
+                "size": 10,
+                "sort": [{"@timestamp": {"order": "desc", "unmapped_type": "boolean"}}],
+                "version": True,
+                "query": {
+                    "bool": {
+                        "must": [],
+                        "filter": [
+                            {
+                                "bool": {
+                                    "filter": [
+                                        {
+                                            "multi_match": {
+                                                "type": "phrase",
+                                                "query": "废弃未在播直播房间",
+                                                "lenient": True,
+                                            }
+                                        },
+                                        {
+                                            "multi_match": {
+                                                "type": "phrase",
+                                                "query": str(room_id),
+                                                "lenient": True,
+                                            }
+                                        },
+                                    ]
+                                }
+                            },
+                        ],
+                        "should": [],
+                        "must_not": [],
+                    }
+                },
+            },
+        )
+
+        if count:
+            return True
+        return False
+
     def get_records(self):
         # 查询非结束的直播间
         neo_rooms = self.get_neo_rooms()
@@ -142,6 +192,11 @@ class MonitorAllRooms(object):
 
         result = []
         for neo_room in neo_rooms:
+            # 判定弃播原因，如果是手动停止，则修改状态为结束
+            if neo_room["live_real_status"] == 80:
+                if self.check_manual_stop(neo_room["id"]):
+                    neo_room["live_real_status"] = 40
+
             original_neo_content = neo_contents.get(neo_room["bind_content_id"], {})
             neo_content = deepcopy(original_neo_content)
             neo_auth = neo_auths.get(neo_content["outside_auth_id"], {})
@@ -160,6 +215,21 @@ class MonitorAllRooms(object):
                 neo_room["live_real_status"] == 40
                 and neo_content.get("live_status") == 25
                 and neo_room["bind_content_id"] in scheduled_content_ids
+            ):
+                neo_content["live_status"] = 40
+
+            # 直播间是结束，直播内容是已开播，则修改状态
+            if (
+                neo_room["live_real_status"] == 40
+                and neo_content.get("live_status") == 20
+                and neo_room["bind_content_id"] in running_content_ids
+            ):
+                neo_content["live_status"] = 40
+
+            # 直播间是结束，直播内容是已就绪，则修改状态
+            if (
+                neo_room["live_real_status"] == 40
+                and neo_content.get("live_status") == 10
             ):
                 neo_content["live_status"] = 40
 
