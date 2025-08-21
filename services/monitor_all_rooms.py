@@ -208,7 +208,10 @@ class MonitorAllRooms(object):
                     errors.append("直播正常但推流异常")
                 if elm["playlist_push_status"] == 2 and elm["room_live_status"] != 20:
                     errors.append("推流正常单直播异常")
-                if elm["room_live_id"] != elm["playlist_live_id"]:
+                if (
+                    elm["room_live_status"] == 20
+                    and elm["room_live_id"] != elm["playlist_live_id"]
+                ):
                     errors.append("销销直播间live_id与推流live_id不一致")
                 if elm["room_live_status"] == 25:
                     if elm["room_start_time"] < datetime.now():
