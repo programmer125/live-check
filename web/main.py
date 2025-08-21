@@ -7,8 +7,6 @@ import traceback
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi_async_sqlalchemy import SQLAlchemyMiddleware
-from sqlalchemy.pool import AsyncAdaptedQueuePool
 from starlette.middleware.cors import CORSMiddleware
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -37,18 +35,6 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-)
-app.add_middleware(
-    SQLAlchemyMiddleware,
-    db_url=settings.async_db_uri,
-    engine_args={
-        "echo": False,
-        "poolclass": AsyncAdaptedQueuePool,
-        "pool_size": 2,
-        "max_overflow": 20,
-        "pool_pre_ping": True,
-        "pool_recycle": 300,
-    },
 )
 app.add_middleware(TraceIdMiddleware)
 

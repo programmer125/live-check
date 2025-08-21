@@ -2,59 +2,32 @@
 # @Author : duyuxuan
 # @Time : 2025/3/28 13:52
 # @File : demo.py
-import json
-import time
-import asyncio
+import traceback
 
-from fastapi import APIRouter, Request, Query
+from fastapi import APIRouter, Query
+
+import crud
 from web.schemas.response_schema import ResponseModel
-from crud import async_crud
+from libs.log_client import Logger
 
+
+logger = Logger(__file__)
 router = APIRouter()
 
 
-@router.post("/any_forward", response_model=ResponseModel)
-async def any_forward(request: Request):
-    body_bytes = await request.body()
-    body = json.loads(body_bytes)
+@router.get("/manual_ignore", response_model=ResponseModel)
+def manual_ignore(room_id: int = Query(...)):
+    try:
+        room = crud.neo_live_check.fetch_one(room_id=room_id)
+        if not room:
+            logger.info(f"直播间不存在，无法开播")
+            return ResponseModel(code=400, message="直播间不存在")
 
-    roles = [
-        {"name": "admin"},
-        {"name": "user"},
-        {"name": "guest"},
-    ]
-    users = [
-        {"username": "admin", "phone": "12345678901", "role_name": "admin"},
-        {"username": "user", "phone": "12345678902", "role_name": "user"},
-    ]
+        # 设置待预热
+        crud.neo_live_check.update_by_id(record_id=room["id"], data={"is_ignore": 1})
 
-    res = await async_crud.user.create_with_role(users=users, roles=roles)
-
-    return ResponseModel(data=body)
-
-
-@router.get("/async_hello", response_model=ResponseModel)
-async def async_hello():
-    return ResponseModel(data="async hello world")
-
-
-@router.get("/sync_hello", response_model=ResponseModel)
-def sync_hello():
-    return ResponseModel(data="sync hello world")
-
-
-@router.get("/async_block", response_model=ResponseModel)
-async def async_block(interval: int = Query(...), is_sync: bool = Query(...)):
-    if is_sync:
-        time.sleep(interval)
-    else:
-        await asyncio.sleep(interval)
-
-    return ResponseModel(data="async sleep end")
-
-
-@router.get("/sync_block", response_model=ResponseModel)
-def sync_block(interval: int = Query(...)):
-    time.sleep(interval)
-
-    return ResponseModel(data="sync sleep end")
+        logger.info(f"忽略成功：room_id={room_id}")
+        return ResponseModel(message="忽略成功", data=room)
+    except Exception as exc:
+        logger.error(f"忽略失败:{traceback.format_exc()}")
+        return ResponseModel(code=500, message=f"忽略失败：{exc}")
