@@ -3,6 +3,7 @@
 # @Time : 2025/8/20 11:35
 # @File : monitor_all_rooms.py
 import sys
+from copy import deepcopy
 from time import sleep
 from pathlib import Path
 from datetime import datetime, timedelta
@@ -141,7 +142,8 @@ class MonitorAllRooms(object):
 
         result = []
         for neo_room in neo_rooms:
-            neo_content = neo_contents.get(neo_room["bind_content_id"], {})
+            original_neo_content = neo_contents.get(neo_room["bind_content_id"], {})
+            neo_content = deepcopy(original_neo_content)
             neo_auth = neo_auths.get(neo_content["outside_auth_id"], {})
             playlist_room = playlist_rooms.get(neo_room["id"], {})
 
