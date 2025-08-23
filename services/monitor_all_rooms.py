@@ -242,7 +242,7 @@ class MonitorAllRooms(object):
                     "room_end_time": neo_room["end_time"],
                     "room_live_id": neo_room["live_id"],
                     "content_id": neo_content.get("id"),
-                    "content_is_rt": neo_room["is_rt"],
+                    "content_is_rt": playlist_room["is_rt"],
                     "content_status": neo_content.get("status"),
                     "content_live_status": neo_content.get("live_status"),
                     "playlist_push_status": playlist_room.get("push_status"),
