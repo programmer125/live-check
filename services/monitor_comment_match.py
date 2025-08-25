@@ -41,7 +41,7 @@ class MonitorLiveCommentMatch(object):
                 elif body.get("dependent_data", {}).get("reply_type") == 90:
                     pass
                 else:
-                    print(body)
+                    logger.info(json.dumps(body, ensure_ascii=False))
 
                 return ConsumeStatus.CONSUME_SUCCESS
             except Exception:
