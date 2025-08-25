@@ -55,18 +55,45 @@ class MonitorLiveCommentEffect(object):
                     logger.error("消费失败：\nexc: {}".format(traceback.format_exc()))
                     raise e
 
+    def monitor_realtime(self):
+        with loguru.logger.contextualize(traceid="monitor_realtime_qa_effect"):
+            conn = redis.StrictRedis.from_url(settings.realtime_playlist_redis_uri)
+            while True:
+                try:
+                    record = conn.lpop("rt-playlist:all:room_qa_effect_records")
+                    if not record:
+                        sleep(1)
+                        continue
+
+                    record = json.loads(record)
+                    body = record["body"]
+                    comment_id = get_text_md5(
+                        "{}-{}".format(body.get("question"), body.get("create_time"))
+                    )
+
+                    crud.neo_live_comment.update_by_condition(
+                        room_id=record.get("room_id"),
+                        comment_id=comment_id,
+                        data={"effect_time": datetime.fromtimestamp(record["time"])},
+                    )
+
+                    logger.info(json.dumps(body, ensure_ascii=False))
+                except Exception as e:
+                    logger.error("消费失败：\nexc: {}".format(traceback.format_exc()))
+                    raise e
+
     def run(self):
         # 创建守护线程
         thread1 = threading.Thread(target=self.monitor_normal, daemon=True)
-        # thread2 = threading.Thread(target=self.monitor_realtime, daemon=True)
+        thread2 = threading.Thread(target=self.monitor_realtime, daemon=True)
 
         # 启动线程
         thread1.start()
-        # thread2.start()
+        thread2.start()
 
         # 等待线程结束
         thread1.join()
-        # thread2.join()
+        thread2.join()
 
 
 if __name__ == "__main__":
