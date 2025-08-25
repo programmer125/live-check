@@ -30,6 +30,7 @@ class NeoLiveCheck(Base):
     auth_platform_id = Column(Integer, nullable=True, comment="绑定内容ID")
     auth_shop_name = Column(String(128), default="", comment="直播间标题")
     auth_short_name = Column(String(255), default="", comment="直播间标题")
+    comment_status = Column(String(255), default="", comment="直播间标题")
     is_error = Column(Integer, nullable=True, comment="绑定内容ID")
     error_msg = Column(String(255), default="", comment="直播间标题")
     is_ignore = Column(SmallInteger, default=0, comment="状态：0正常；1删除")

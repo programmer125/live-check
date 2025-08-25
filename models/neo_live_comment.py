@@ -17,6 +17,7 @@ class NeoLiveComment(Base):
     comment_id = Column(String(128), default="", comment="直播间标题")
     question = Column(JSON, nullable=True, comment="绑定内容ID")
     answer = Column(JSON, nullable=True, comment="绑定内容ID")
+    is_match = Column(Integer, nullable=True, comment="绑定内容ID")
     crawl_time = Column(TIMESTAMP, nullable=True, default=None, comment="开始时间")
     match_time = Column(TIMESTAMP, nullable=True, default=None, comment="结束时间")
     effect_time = Column(TIMESTAMP, nullable=True, default=None, comment="结束时间")

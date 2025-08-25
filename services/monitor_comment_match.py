@@ -55,10 +55,15 @@ class MonitorLiveCommentMatch(object):
                     "{}-{}".format(body.get("question"), dependent_data.get("time"))
                 )
 
+                is_match = 1 if body.get("is_match") else 2
                 crud.neo_live_comment.update_by_condition(
                     room_id=int(dependent_data.get("room_id")),
                     comment_id=comment_id,
-                    data={"answer": body, "match_time": datetime.now()},
+                    data={
+                        "answer": body,
+                        "match_time": datetime.now(),
+                        "is_match": is_match,
+                    },
                 )
 
                 logger.info(json.dumps(body, ensure_ascii=False))
