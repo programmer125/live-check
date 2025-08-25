@@ -37,7 +37,7 @@ class MonitorLiveCommentCrawl(object):
             try:
                 body = json.loads(msg.body)
                 if body.get("question"):
-                    print(body)
+                    logger.info(json.dumps(body, ensure_ascii=False))
 
                 return ConsumeStatus.CONSUME_SUCCESS
             except Exception:
