@@ -1,0 +1,38 @@
+[program:lc-web-api]
+directory=/root/live-check
+command=/root/miniconda3/envs/live-check/bin/python web/main.py
+autostart=true
+autorestart=true
+stderr_logfile=/var/log/supervisor/lc-web-api.log
+stdout_logfile=/var/log/supervisor/lc-web-api.log
+environment=PYTHONUNBUFFERED=1,LIVE_CHECK_ENV=prod
+
+[program:lc-monitor_all_rooms]
+directory=/root/live-check/services
+command=/root/miniconda3/envs/live-check/bin/python monitor_all_rooms.py
+autostart=true
+autorestart=true
+stderr_logfile=/var/log/supervisor/lc-monitor_all_rooms.log
+stdout_logfile=/var/log/supervisor/ls-monitor_all_rooms.log
+environment=PYTHONUNBUFFERED=1,LIVE_CHECK_ENV=prod
+
+[program:lc-monitor_comment_crawl]
+directory=/root/live-check/services
+command=/root/miniconda3/envs/live-check/bin/python monitor_comment_crawl.py
+autostart=true
+autorestart=true
+stderr_logfile=/var/log/supervisor/lc-monitor_comment_crawl.log
+stdout_logfile=/var/log/supervisor/ls-monitor_comment_crawl.log
+environment=PYTHONUNBUFFERED=1,LIVE_CHECK_ENV=prod
+
+[program:lc-monitor_comment_match]
+directory=/root/live-check/services
+command=/root/miniconda3/envs/live-check/bin/python monitor_comment_match.py
+autostart=true
+autorestart=true
+stderr_logfile=/var/log/supervisor/lc-monitor_comment_match.log
+stdout_logfile=/var/log/supervisor/ls-monitor_comment_match.log
+environment=PYTHONUNBUFFERED=1,LIVE_CHECK_ENV=prod
+
+[group:live-check]
+programs=lc-web-api,monitor_comment_crawl,monitor_comment_match,monitor_live_check
