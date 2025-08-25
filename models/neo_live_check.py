@@ -4,7 +4,7 @@
 # @Author  : tangshuqian
 # @File    : room_dao.py
 # @Software: PyCharm
-from sqlalchemy import Column, Integer, SmallInteger, String, TIMESTAMP, text, JSON
+from sqlalchemy import Column, Integer, SmallInteger, String, TIMESTAMP, text, DECIMAL
 from models.base_model import Base
 
 
@@ -30,7 +30,10 @@ class NeoLiveCheck(Base):
     auth_platform_id = Column(Integer, nullable=True, comment="绑定内容ID")
     auth_shop_name = Column(String(128), default="", comment="直播间标题")
     auth_short_name = Column(String(255), default="", comment="直播间标题")
-    qa_status = Column(JSON, nullable=True, comment="直播间标题")
+    max_not_match_time = Column(TIMESTAMP, nullable=True, default=None, comment="结束时间")
+    match_success_rate = Column(DECIMAL, nullable=True, default=None, comment="结束时间")
+    effect_rate = Column(DECIMAL, nullable=True, default=None, comment="结束时间")
+    effect_duration = Column(DECIMAL, nullable=True, default=None, comment="结束时间")
     is_error = Column(Integer, nullable=True, comment="绑定内容ID")
     error_msg = Column(String(255), default="", comment="直播间标题")
     is_ignore = Column(SmallInteger, default=0, comment="状态：0正常；1删除")

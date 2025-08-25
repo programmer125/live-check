@@ -340,13 +340,6 @@ class MonitorAllRooms(object):
             else:
                 effect_duration = 0
 
-            qa_status = {
-                "max_not_match_time": max_not_match_time,
-                "match_success_rate": round(match_success_rate, 2),
-                "effect_rate": round(effect_rate, 2),
-                "effect_duration": round(effect_duration, 2),
-            }
-
             is_rt = 0 if neo_content.get("buy_version") == 1 else 1
             result.append(
                 {
@@ -367,7 +360,10 @@ class MonitorAllRooms(object):
                     "auth_platform_id": neo_auth.get("platform_id"),
                     "auth_shop_name": neo_auth.get("shop_name"),
                     "auth_short_name": neo_auth.get("short_name"),
-                    "qa_status": qa_status,
+                    "max_not_match_time": max_not_match_time,
+                    "match_success_rate": round(match_success_rate, 2),
+                    "effect_rate": round(effect_rate, 2),
+                    "effect_duration": round(effect_duration, 2),
                 }
             )
 
@@ -416,20 +412,16 @@ class MonitorAllRooms(object):
                     ):
                         errors.append("预定的直播时间过短")
 
-                if elm["qa_status"]["max_not_match_time"]:
-                    if datetime.now() > elm["qa_status"][
-                        "max_not_match_time"
-                    ] + timedelta(minutes=10):
+                if elm["max_not_match_time"]:
+                    if datetime.now() > elm["max_not_match_time"] + timedelta(
+                        minutes=10
+                    ):
                         errors.append("超过10分钟不互动")
-
-                    elm["qa_status"]["max_not_match_time"] = elm["qa_status"][
-                        "max_not_match_time"
-                    ].strftime("%Y-%m-%d %H:%M:%S")
-                if elm["qa_status"]["match_success_rate"] < 0.5:
+                if elm["match_success_rate"] < 0.5:
                     errors.append("互动匹配成功率低于50%")
-                if elm["qa_status"]["effect_rate"] < 0.8:
+                if elm["effect_rate"] < 0.8:
                     errors.append("互动响应率低于80%")
-                if elm["qa_status"]["effect_duration"] > 15:
+                if elm["effect_duration"] > 15:
                     errors.append("互动响应时长超过15秒")
             except Exception as exc:
                 errors.append(str(exc))
