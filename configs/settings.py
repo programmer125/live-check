@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     rocketmq_ai_qa_results_topic: str = ""
     rocketmq_ai_qa_results_live_check_consumer: str = ""
 
+    normal_playlist_redis_uri: str = ""
+    realtime_playlist_redis_uri: str = ""
+
     # es配置
     es_host: str = ""
     es_user: str = ""
