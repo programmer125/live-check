@@ -37,6 +37,7 @@ class MonitorLiveCommentEffect(object):
                         sleep(1)
                         continue
 
+                    record = json.loads(record)
                     body = record["body"]
                     dependent_data = body.pop("dependent_data")
                     comment_id = get_text_md5(
