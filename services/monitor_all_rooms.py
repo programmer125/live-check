@@ -37,6 +37,7 @@ class MonitorAllRooms(object):
 
     # 查找销销所有未关闭的直播，与推流未结束的直播间，取并集
     def get_neo_rooms(self):
+        # 推流未关闭的直播间
         stander_rooms = self.playlist_client.fetch_all(
             "SELECT bind_id FROM playlist_control.room where status not in (3, 4)"
         )
@@ -64,7 +65,13 @@ class MonitorAllRooms(object):
             for elm in neo_rooms:
                 result.append(dict(elm))
 
-        return result
+        # 已经检测过的直播间直接忽略
+        ignore_records = self.neoailive_client.fetch_all(
+            "SELECT room_id FROM neoailive_db.n_live_check where `status` = 1 or `is_ignore` = 1"
+        )
+        ignore_bind_ids = {elm["room_id"] for elm in ignore_records}
+
+        return [elm for elm in result if elm["id"] not in ignore_bind_ids]
 
     def get_neo_contents(self, content_ids):
         content_ids = ",".join([str(elm) for elm in content_ids])
