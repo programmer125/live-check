@@ -288,6 +288,65 @@ class MonitorAllRooms(object):
             ):
                 neo_content["live_status"] = 40
 
+            # 获取所有评论内容
+            comments = crud.neo_live_comment.fetch_all(
+                fields=["is_match", "crawl_time", "match_time", "effect_time"],
+                room_id=neo_room["id"],
+                sorts=[("crawl_time", "desc")],
+            )
+
+            # 评论相关的统计
+            match_success_count = 0
+            match_fail_count = 0
+            effect_count = 0
+            effect_duration = 0
+            for comment in comments:
+                if comment["is_match"] == 1:
+                    # 匹配成功
+                    match_success_count += 1
+
+                    if comment["effect_time"]:
+                        effect_count += 1
+                        effect_duration += (
+                            comment["effect_time"] - comment["crawl_time"]
+                        ).total_seconds()
+                elif comment["is_match"] == 2:
+                    # 匹配失败
+                    match_fail_count += 1
+                else:
+                    pass
+
+            max_not_match_time = None
+            for comment in comments:
+                if comment["is_match"] == 0:
+                    max_not_match_time = comment["crawl_time"]
+                else:
+                    break
+
+            if match_success_count + match_fail_count > 0:
+                match_success_rate = match_success_count / (
+                    match_success_count + match_fail_count
+                )
+            else:
+                match_success_rate = 1
+
+            if match_success_count > 0:
+                effect_rate = effect_count / match_success_count
+            else:
+                effect_rate = 1
+
+            if effect_count > 0:
+                effect_duration = effect_duration / effect_count
+            else:
+                effect_duration = 0
+
+            qa_status = {
+                "max_not_match_time": max_not_match_time,
+                "match_success_rate": round(match_success_rate, 2),
+                "effect_rate": round(effect_rate, 2),
+                "effect_duration": round(effect_duration, 2),
+            }
+
             is_rt = 0 if neo_content.get("buy_version") == 1 else 1
             result.append(
                 {
@@ -308,6 +367,7 @@ class MonitorAllRooms(object):
                     "auth_platform_id": neo_auth.get("platform_id"),
                     "auth_shop_name": neo_auth.get("shop_name"),
                     "auth_short_name": neo_auth.get("short_name"),
+                    "qa_status": qa_status,
                 }
             )
 
