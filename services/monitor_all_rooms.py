@@ -289,10 +289,10 @@ class MonitorAllRooms(object):
                 neo_content["live_status"] = 40
 
             # 获取所有评论内容
-            comments = crud.neo_live_comment.fetch_all(
-                fields=["is_match", "crawl_time", "match_time", "effect_time"],
-                room_id=neo_room["id"],
-                sorts=[("crawl_time", "desc")],
+            comments = self.neoailive_client.fetch_all(
+                "select is_match, crawl_time, match_time, effect_time from neoailive_db.n_live_comment where room_id = {} order by crawl_time desc".format(
+                    neo_room["id"]
+                )
             )
 
             # 评论相关的统计
@@ -415,6 +415,22 @@ class MonitorAllRooms(object):
                         minutes=60
                     ):
                         errors.append("预定的直播时间过短")
+
+                if elm["qa_status"]["max_not_match_time"]:
+                    if datetime.now() > elm["qa_status"][
+                        "max_not_match_time"
+                    ] + timedelta(minutes=10):
+                        errors.append("超过10分钟不互动")
+
+                    elm["qa_status"]["max_not_match_time"] = elm["qa_status"][
+                        "max_not_match_time"
+                    ].strftime("%Y-%m-%d %H:%M:%S")
+                if elm["qa_status"]["match_success_rate"] < 0.5:
+                    errors.append("互动匹配成功率低于50%")
+                if elm["qa_status"]["effect_rate"] < 0.8:
+                    errors.append("互动响应率低于80%")
+                if elm["qa_status"]["effect_duration"] > 15:
+                    errors.append("互动响应时长超过15秒")
             except Exception as exc:
                 errors.append(str(exc))
 
