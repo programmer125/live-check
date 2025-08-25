@@ -35,4 +35,4 @@ stdout_logfile=/var/log/supervisor/ls-monitor_comment_match.log
 environment=PYTHONUNBUFFERED=1,LIVE_CHECK_ENV=prod
 
 [group:live-check]
-programs=lc-web-api,monitor_comment_crawl,monitor_comment_match,monitor_live_check
+programs=lc-web-api,lc-monitor_comment_crawl,lc-monitor_comment_match,lc-monitor_all_rooms
