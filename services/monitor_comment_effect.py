@@ -50,7 +50,13 @@ class MonitorLiveCommentEffect(object):
                         data={"effect_time": datetime.fromtimestamp(record["time"])},
                     )
 
-                    logger.info(json.dumps(body, ensure_ascii=False))
+                    logger.info(
+                        "{}-{}\n{}".format(
+                            dependent_data.get("room_id"),
+                            comment_id,
+                            json.dumps(record, ensure_ascii=False),
+                        )
+                    )
                 except Exception as e:
                     logger.error("消费失败：\nexc: {}".format(traceback.format_exc()))
                     raise e
@@ -77,7 +83,13 @@ class MonitorLiveCommentEffect(object):
                         data={"effect_time": datetime.fromtimestamp(record["time"])},
                     )
 
-                    logger.info(json.dumps(body, ensure_ascii=False))
+                    logger.info(
+                        "{}-{}\n{}".format(
+                            record.get("room_id"),
+                            comment_id,
+                            json.dumps(record, ensure_ascii=False),
+                        )
+                    )
                 except Exception as e:
                     logger.error("消费失败：\nexc: {}".format(traceback.format_exc()))
                     raise e
