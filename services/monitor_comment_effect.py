@@ -27,7 +27,7 @@ logger = Logger(__file__)
 class MonitorLiveCommentEffect(object):
     def monitor_normal(self):
         with loguru.logger.contextualize(traceid="monitor_normal_qa_effect"):
-            conn = redis.StrictRedis(settings.normal_playlist_redis_uri)
+            conn = redis.StrictRedis.from_url(settings.normal_playlist_redis_uri)
             while True:
                 try:
                     record = conn.lpop(
