@@ -21,16 +21,16 @@ from libs.log_client import Logger
 logger = Logger(__file__)
 
 
-class MonitorLiveCommentCrawl(object):
+class MonitorLiveCommentMatch(object):
     def __init__(self):
         self.rocketmq = {
-            "group_name": settings.rocketmq_live_room_comments_live_check_consumer,
+            "group_name": settings.rocketmq_ai_qa_results_live_check_consumer,
             "name_server": settings.rocketmq_name_server,
             "access_key": settings.rocketmq_access_key,
             "access_secret": settings.rocketmq_access_secret,
         }
-        self.topic = settings.rocketmq_live_room_comments_topic
-        self.minor_step = "monitor_comment_crawl"
+        self.topic = settings.rocketmq_ai_qa_results_topic
+        self.minor_step = "monitor_comment_match"
 
     def process(self, msg: Message):
         with loguru.logger.contextualize(traceid=self.minor_step):
@@ -53,5 +53,5 @@ class MonitorLiveCommentCrawl(object):
 
 if __name__ == "__main__":
     while True:
-        instance = MonitorLiveCommentCrawl()
+        instance = MonitorLiveCommentMatch()
         instance.consume()
