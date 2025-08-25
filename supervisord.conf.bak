@@ -34,5 +34,14 @@ stderr_logfile=/var/log/supervisor/lc-monitor_comment_match.log
 stdout_logfile=/var/log/supervisor/ls-monitor_comment_match.log
 environment=PYTHONUNBUFFERED=1,LIVE_CHECK_ENV=prod
 
+[program:lc-monitor_comment_effect]
+directory=/root/live-check/services
+command=/root/miniconda3/envs/live-check/bin/python monitor_comment_effect.py
+autostart=true
+autorestart=true
+stderr_logfile=/var/log/supervisor/lc-monitor_comment_effect.log
+stdout_logfile=/var/log/supervisor/ls-monitor_comment_effect.log
+environment=PYTHONUNBUFFERED=1,LIVE_CHECK_ENV=prod
+
 [group:live-check]
-programs=lc-web-api,lc-monitor_comment_crawl,lc-monitor_comment_match,lc-monitor_all_rooms
+programs=lc-web-api,lc-monitor_all_rooms,lc-monitor_comment_crawl,lc-monitor_comment_match,monitor_comment_effect
