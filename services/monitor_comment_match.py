@@ -7,13 +7,16 @@ import json
 import traceback
 from time import sleep
 from pathlib import Path
+from datetime import datetime
 
 import loguru
 from rocketmq.client import Message, ConsumeStatus
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.append(str(BASE_DIR))
+import crud
 from configs.settings import settings
+from libs.helper import get_text_md5
 from libs.sync_rocketmq import RocketMQConsumer
 from libs.log_client import Logger
 
@@ -40,19 +43,31 @@ class MonitorLiveCommentMatch(object):
                 if body.get("dependent_data", {}).get("cart_list"):
                     body["dependent_data"].pop("cart_list")
 
+                if not body.get("dependent_data"):
+                    return ConsumeStatus.CONSUME_SUCCESS
                 if body.get("intent_type") == "atmosphere":
-                    pass
+                    return ConsumeStatus.CONSUME_SUCCESS
                 elif body.get("dependent_data", {}).get("reply_type") == 90:
-                    pass
-                else:
-                    logger.info(json.dumps(body, ensure_ascii=False))
+                    return ConsumeStatus.CONSUME_SUCCESS
 
-                return ConsumeStatus.CONSUME_SUCCESS
+                dependent_data = body.pop("dependent_data")
+                comment_id = get_text_md5(
+                    "{}-{}".format(body.get("question"), dependent_data.get("time"))
+                )
+
+                crud.neo_live_comment.update_by_condition(
+                    room_id=int(dependent_data.get("room_id")),
+                    comment_id=comment_id,
+                    data={"answer": body, "match_time": datetime.now()},
+                )
+
+                logger.info(json.dumps(body, ensure_ascii=False))
             except Exception:
                 logger.error(
                     "消费失败：\nexc: {}\nbody: {}".format(traceback.format_exc(), msg.body)
                 )
-                return ConsumeStatus.CONSUME_SUCCESS
+
+            return ConsumeStatus.CONSUME_SUCCESS
 
     def consume(self):
         with RocketMQConsumer(**self.rocketmq) as consumer:

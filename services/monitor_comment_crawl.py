@@ -7,13 +7,16 @@ import json
 import traceback
 from time import sleep
 from pathlib import Path
+from datetime import datetime
 
 import loguru
 from rocketmq.client import Message, ConsumeStatus
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.append(str(BASE_DIR))
+import crud
 from configs.settings import settings
+from libs.helper import get_text_md5
 from libs.sync_rocketmq import RocketMQConsumer
 from libs.log_client import Logger
 
@@ -40,15 +43,30 @@ class MonitorLiveCommentCrawl(object):
                 if body.get("user_data", {}).get("cart_list"):
                     body["user_data"].pop("cart_list")
 
-                if body.get("question"):
-                    logger.info(json.dumps(body, ensure_ascii=False))
+                if not body.get("user_data") or not body.get("question"):
+                    return ConsumeStatus.CONSUME_SUCCESS
 
-                return ConsumeStatus.CONSUME_SUCCESS
+                user_data = body.get("user_data")
+                comment_id = get_text_md5(
+                    "{}-{}".format(body.get("question"), user_data.get("time"))
+                )
+
+                crud.neo_live_comment.create(
+                    data={
+                        "room_id": int(user_data.get("room_id")),
+                        "comment_id": comment_id,
+                        "question": body,
+                        "crawl_time": datetime.fromtimestamp(user_data.get("time")),
+                    }
+                )
+
+                logger.info(json.dumps(body, ensure_ascii=False))
             except Exception:
                 logger.error(
                     "消费失败：\nexc: {}\nbody: {}".format(traceback.format_exc(), msg.body)
                 )
-                return ConsumeStatus.CONSUME_SUCCESS
+
+            return ConsumeStatus.CONSUME_SUCCESS
 
     def consume(self):
         with RocketMQConsumer(**self.rocketmq) as consumer:
