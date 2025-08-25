@@ -47,6 +47,13 @@ class MonitorLiveCommentCrawl(object):
                     return ConsumeStatus.CONSUME_SUCCESS
 
                 user_data = body.get("user_data")
+                if (
+                    user_data.get("platform_id")
+                    and int(user_data.get("platform_id")) == 1
+                    and user_data.get("reply_type") == 9
+                ):
+                    return ConsumeStatus.CONSUME_SUCCESS
+
                 comment_id = get_text_md5(
                     "{}-{}".format(body.get("question"), user_data.get("time"))
                 )
