@@ -36,7 +36,8 @@ class MonitorLiveCommentCrawl(object):
         with loguru.logger.contextualize(traceid=self.minor_step):
             try:
                 body = json.loads(msg.body)
-                print(body)
+                if body.get("question"):
+                    print(body)
 
                 return ConsumeStatus.CONSUME_SUCCESS
             except Exception:
