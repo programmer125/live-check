@@ -47,7 +47,7 @@ class MonitorLiveCommentEffect(object):
                     crud.neo_live_comment.update_by_condition(
                         room_id=int(dependent_data.get("room_id")),
                         comment_id=comment_id,
-                        data={"effect_time": datetime.fromtimestamp(body["time"])},
+                        data={"effect_time": datetime.fromtimestamp(record["time"])},
                     )
 
                     logger.info(json.dumps(body, ensure_ascii=False))
