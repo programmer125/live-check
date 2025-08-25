@@ -28,6 +28,15 @@ class Settings(BaseSettings):
     log_redis_uri: str = ""
     log_redis_key: str = ""
 
+    # rocketmq配置
+    rocketmq_name_server: str = ""
+    rocketmq_access_key: str = ""
+    rocketmq_access_secret: str = ""
+    rocketmq_live_room_comments_topic: str = ""
+    rocketmq_live_room_comments_live_check_consumer: str = ""
+    rocketmq_ai_qa_results_topic: str = ""
+    rocketmq_ai_qa_results_live_check_consumer: str = ""
+
     # es配置
     es_host: str = ""
     es_user: str = ""
