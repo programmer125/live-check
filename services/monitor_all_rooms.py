@@ -236,7 +236,7 @@ class MonitorAllRooms(object):
 
         result = []
         for neo_room in neo_rooms:
-            # 判定弃播原因，如果是手动停止，则修改状态为结束
+            # 判定弃播原因，如果是手动停止或超时未开播，则修改状态为结束
             if neo_room["live_real_status"] == 80:
                 if self.check_manual_stop(neo_room["id"]):
                     neo_room["live_real_status"] = 40
@@ -276,6 +276,8 @@ class MonitorAllRooms(object):
             if (
                 neo_room["live_real_status"] == 40
                 and neo_content.get("live_status") == 10
+                and neo_room["bind_content_id"] not in running_content_ids
+                and neo_room["bind_content_id"] not in scheduled_content_ids
             ):
                 neo_content["live_status"] = 40
 
@@ -352,9 +354,13 @@ class MonitorAllRooms(object):
             if errors:
                 elm["is_error"] = 1
                 elm["error_msg"] = "\n".join(errors)
+                elm["status"] = 0
             else:
                 elm["is_error"] = 0
                 elm["error_msg"] = ""
+
+                if elm["room_live_status"] == 40:
+                    elm["status"] = 1
 
             if elm["room_id"] in history_record_ids:
                 crud.neo_live_check.update_by_condition(
