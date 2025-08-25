@@ -36,6 +36,10 @@ class MonitorLiveCommentMatch(object):
         with loguru.logger.contextualize(traceid=self.minor_step):
             try:
                 body = json.loads(msg.body)
+                # 节省空间不存储挂袋列表
+                if body.get("dependent_data", {}).get("cart_list"):
+                    body["dependent_data"].pop("cart_list")
+
                 if body.get("intent_type") == "atmosphere":
                     pass
                 elif body.get("dependent_data", {}).get("reply_type") == 90:

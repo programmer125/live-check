@@ -36,6 +36,10 @@ class MonitorLiveCommentCrawl(object):
         with loguru.logger.contextualize(traceid=self.minor_step):
             try:
                 body = json.loads(msg.body)
+                # 节省空间不存储挂袋列表
+                if body.get("user_data", {}).get("cart_list"):
+                    body["user_data"].pop("cart_list")
+
                 if body.get("question"):
                     logger.info(json.dumps(body, ensure_ascii=False))
 
