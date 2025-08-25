@@ -36,7 +36,12 @@ class MonitorLiveCommentMatch(object):
         with loguru.logger.contextualize(traceid=self.minor_step):
             try:
                 body = json.loads(msg.body)
-                print(body)
+                if body.get("intent_type") == "atmosphere":
+                    pass
+                elif body.get("dependent_data", {}).get("reply_type") == 90:
+                    pass
+                else:
+                    print(body)
 
                 return ConsumeStatus.CONSUME_SUCCESS
             except Exception:
