@@ -16,6 +16,7 @@ class NeoLiveCheck(Base):
     room_id = Column(Integer, nullable=True, comment="绑定内容ID")
     room_status = Column(Integer, nullable=True, comment="绑定内容ID")
     room_live_status = Column(Integer, nullable=True, comment="绑定内容ID")
+    room_start_type = Column(Integer, nullable=True, comment="绑定内容ID")
     room_start_time = Column(TIMESTAMP, nullable=True, default=None, comment="开始时间")
     room_end_time = Column(TIMESTAMP, nullable=True, default=None, comment="结束时间")
     room_live_id = Column(String(128), default="", comment="直播间标题")

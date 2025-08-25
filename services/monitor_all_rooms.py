@@ -165,6 +165,50 @@ class MonitorAllRooms(object):
             return True
         return False
 
+    def check_timeout_stop(self, room_id):
+        # 查询最后一次开播
+        count, logs = self.es_manager.search(
+            "neoailive-api-service",
+            body={
+                "size": 10,
+                "sort": [{"@timestamp": {"order": "desc", "unmapped_type": "boolean"}}],
+                "version": True,
+                "query": {
+                    "bool": {
+                        "must": [],
+                        "filter": [
+                            {
+                                "bool": {
+                                    "filter": [
+                                        {
+                                            "multi_match": {
+                                                "type": "phrase",
+                                                "query": "超时关闭直播",
+                                                "lenient": True,
+                                            }
+                                        },
+                                        {
+                                            "multi_match": {
+                                                "type": "phrase",
+                                                "query": str(room_id),
+                                                "lenient": True,
+                                            }
+                                        },
+                                    ]
+                                }
+                            },
+                        ],
+                        "should": [],
+                        "must_not": [],
+                    }
+                },
+            },
+        )
+
+        if count:
+            return True
+        return False
+
     def get_records(self):
         # 查询非结束的直播间
         neo_rooms = self.get_neo_rooms()
@@ -195,6 +239,8 @@ class MonitorAllRooms(object):
             # 判定弃播原因，如果是手动停止，则修改状态为结束
             if neo_room["live_real_status"] == 80:
                 if self.check_manual_stop(neo_room["id"]):
+                    neo_room["live_real_status"] = 40
+                if self.check_timeout_stop(neo_room["id"]):
                     neo_room["live_real_status"] = 40
 
             original_neo_content = neo_contents.get(neo_room["bind_content_id"], {})
@@ -239,6 +285,7 @@ class MonitorAllRooms(object):
                     "room_id": neo_room["id"],
                     "room_status": neo_room["status"],
                     "room_live_status": neo_room.get("live_real_status"),
+                    "room_start_type": neo_room.get("start_type"),
                     "room_start_time": neo_room["start_time"],
                     "room_end_time": neo_room["end_time"],
                     "room_live_id": neo_room["live_id"],
@@ -262,7 +309,11 @@ class MonitorAllRooms(object):
         records = self.get_records()
 
         # 历史记录
-        history_records = crud.neo_live_check.fetch_all(fields=["room_id"], status=0)
+        history_records = self.neoailive_client.fetch_all(
+            "SELECT room_id FROM neoailive_db.n_live_check where room_id in ({})".format(
+                ",".join(str(elm["room_id"]) for elm in records)
+            )
+        )
         history_record_ids = {elm["room_id"] for elm in history_records}
 
         # 逐条分析
@@ -313,13 +364,6 @@ class MonitorAllRooms(object):
                 crud.neo_live_check.create(data=elm)
 
         logger.info(f"检测直播间 {len(records)} 个")
-
-        # 删除状态正常的已结束直播间
-        ignore_room_ids = set(history_record_ids) - set(new_record_ids)
-        for room_id in ignore_room_ids:
-            crud.neo_live_check.update_by_condition(room_id=room_id, data={"status": 1})
-
-        logger.info(f"忽略直播间 {len(ignore_room_ids)} 个")
 
 
 if __name__ == "__main__":
