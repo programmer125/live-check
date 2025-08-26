@@ -395,6 +395,7 @@ class MonitorAllRooms(object):
             else:
                 elm["is_error"] = 0
                 elm["error_msg"] = ""
+                elm["status"] = 0
 
                 if elm["room_live_status"] == 40:
                     elm["status"] = 1
