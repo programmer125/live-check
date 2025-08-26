@@ -20,11 +20,12 @@ def manual_ignore(room_id: int = Query(...)):
     try:
         room = crud.neo_live_check.fetch_one(room_id=room_id)
         if not room:
-            logger.info(f"直播间不存在，无法开播")
+            logger.info(f"直播间不存在")
             return ResponseModel(code=400, message="直播间不存在")
 
-        # 设置待预热
-        crud.neo_live_check.update_by_id(record_id=room["id"], data={"is_ignore": 1})
+        # 忽略异常
+        crud.neo_live_check.update_by_id(record_id=room["id"], data={"status": 1})
+        crud.neo_room.update_by_id(record_id=room["room_id"], data={"has_checked": 1})
 
         logger.info(f"忽略成功：room_id={room_id}")
         return ResponseModel(message="忽略成功", data=room)
