@@ -360,7 +360,7 @@ class MonitorAllRooms(object):
                 if elm["room_live_status"] == 20 and elm["playlist_push_status"] != 2:
                     errors.append("直播正常但推流异常")
                 if elm["playlist_push_status"] == 2 and elm["room_live_status"] != 20:
-                    errors.append("推流正常单直播异常")
+                    errors.append("推流正常但直播异常")
                 if (
                     elm["room_live_id"]
                     and elm["playlist_live_id"]
