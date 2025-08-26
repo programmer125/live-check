@@ -8,6 +8,7 @@ from time import sleep
 from pathlib import Path
 from datetime import datetime, timedelta
 
+import redis
 import loguru
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -34,6 +35,17 @@ class MonitorAllRooms(object):
         self.es_manager = ESClient(
             host=settings.es_host, user=settings.es_user, password=settings.es_password
         )
+
+        self.redis_client = redis.StrictRedis.from_url(settings.redis_uri)
+        comment_crawl_time = self.redis_client.get(
+            "live-check:reset_comment_crawl_time"
+        )
+        if comment_crawl_time:
+            self.comment_crawl_time = datetime.fromtimestamp(
+                float(comment_crawl_time.decode())
+            ).strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            self.comment_crawl_time = "2025-08-20 00:00:00"
 
     # 查找销销所有未关闭的直播，与推流未结束的直播间，取并集
     def get_neo_rooms(self):
@@ -264,8 +276,8 @@ class MonitorAllRooms(object):
 
             # 获取所有评论内容
             comments = self.neoailive_client.fetch_all(
-                "select is_match, crawl_time, match_time, effect_time from neoailive_db.n_live_comment where room_id = {} order by crawl_time desc".format(
-                    neo_room["id"]
+                "select is_match, crawl_time, match_time, effect_time from neoailive_db.n_live_comment where room_id = {} and crawl_time > '{}' order by crawl_time desc".format(
+                    neo_room["id"], self.comment_crawl_time
                 )
             )
 
@@ -375,17 +387,17 @@ class MonitorAllRooms(object):
                     ):
                         errors.append("预约的直播时长不足30分钟")
 
-                # if elm["max_not_match_time"]:
-                #     if datetime.now() > elm["max_not_match_time"] + timedelta(
-                #         minutes=10
-                #     ):
-                #         errors.append("超过10分钟不互动")
+                if elm["max_not_match_time"]:
+                    if datetime.now() > elm["max_not_match_time"] + timedelta(
+                        minutes=10
+                    ):
+                        errors.append("超过10分钟不互动")
+                if elm["effect_rate"] < 0.8:
+                    errors.append("互动响应率低于80%")
+                if elm["effect_duration"] > 15:
+                    errors.append("互动响应时长超过15秒")
                 # if elm["match_success_rate"] < 0.5:
                 #     errors.append("互动匹配成功率低于50%")
-                # if elm["effect_rate"] < 0.8:
-                #     errors.append("互动响应率低于80%")
-                # if elm["effect_duration"] > 15:
-                #     errors.append("互动响应时长超过15秒")
             except Exception as exc:
                 errors.append(str(exc))
 
