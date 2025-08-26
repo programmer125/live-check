@@ -412,17 +412,17 @@ class MonitorAllRooms(object):
                     ):
                         errors.append("预定的直播时间过短")
 
-                if elm["max_not_match_time"]:
-                    if datetime.now() > elm["max_not_match_time"] + timedelta(
-                        minutes=10
-                    ):
-                        errors.append("超过10分钟不互动")
-                if elm["match_success_rate"] < 0.5:
-                    errors.append("互动匹配成功率低于50%")
-                if elm["effect_rate"] < 0.8:
-                    errors.append("互动响应率低于80%")
-                if elm["effect_duration"] > 15:
-                    errors.append("互动响应时长超过15秒")
+                # if elm["max_not_match_time"]:
+                #     if datetime.now() > elm["max_not_match_time"] + timedelta(
+                #         minutes=10
+                #     ):
+                #         errors.append("超过10分钟不互动")
+                # if elm["match_success_rate"] < 0.5:
+                #     errors.append("互动匹配成功率低于50%")
+                # if elm["effect_rate"] < 0.8:
+                #     errors.append("互动响应率低于80%")
+                # if elm["effect_duration"] > 15:
+                #     errors.append("互动响应时长超过15秒")
             except Exception as exc:
                 errors.append(str(exc))
 
