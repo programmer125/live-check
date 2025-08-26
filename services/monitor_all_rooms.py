@@ -344,10 +344,7 @@ class MonitorAllRooms(object):
         records = self.get_records()
 
         # 逐条分析
-        new_record_ids = []
         for elm in records:
-            new_record_ids.append(elm["room_id"])
-
             errors = []
             try:
                 if elm["room_status"]:
