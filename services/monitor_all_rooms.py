@@ -213,17 +213,21 @@ class MonitorAllRooms(object):
 
         result = []
         for neo_room in neo_rooms:
+            original_neo_content = neo_contents.get(neo_room["bind_content_id"], {})
+            neo_content = deepcopy(original_neo_content)
+            neo_auth = neo_auths.get(neo_content["outside_auth_id"], {})
+            playlist_room = playlist_rooms.get(neo_room["id"], {})
+
+            # 删除直播间当做结束处理
+            if neo_room["status"] != 0:
+                neo_room["live_real_status"] = 40
+
             # 判定弃播原因，如果是手动停止或超时未开播，则修改状态为结束
             if neo_room["live_real_status"] == 80:
                 if self.check_manual_stop(neo_room["id"]):
                     neo_room["live_real_status"] = 40
                 if self.check_timeout_stop(neo_room["id"]):
                     neo_room["live_real_status"] = 40
-
-            original_neo_content = neo_contents.get(neo_room["bind_content_id"], {})
-            neo_content = deepcopy(original_neo_content)
-            neo_auth = neo_auths.get(neo_content["outside_auth_id"], {})
-            playlist_room = playlist_rooms.get(neo_room["id"], {})
 
             # 直播间是定时中，直播内容如果确实是直播中，则修改状态
             if (
@@ -347,10 +351,10 @@ class MonitorAllRooms(object):
         for elm in records:
             errors = []
             try:
-                if elm["room_status"]:
-                    errors.append("销销直播间已删除")
-                if elm["content_status"]:
-                    errors.append("销销直播内容已删除")
+                # if elm["room_status"]:
+                #     errors.append("销销直播间已删除")
+                # if elm["content_status"]:
+                #     errors.append("销销直播内容已删除")
                 if elm["room_live_status"] != elm["content_live_status"]:
                     errors.append("销销直播内容与直播间状态不一致")
                 if elm["room_live_status"] == 20 and elm["playlist_push_status"] != 2:
