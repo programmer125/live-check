@@ -206,9 +206,9 @@ class MonitorAllRooms(object):
         running_content_ids = []
         scheduled_content_ids = []
         for neo_room in neo_rooms:
-            if neo_room["live_real_status"] == 20:
+            if neo_room["live_real_status"] == 20 and neo_room["status"] == 0:
                 running_content_ids.append(neo_room["bind_content_id"])
-            if neo_room["live_real_status"] == 25:
+            if neo_room["live_real_status"] == 25 and neo_room["status"] == 0:
                 scheduled_content_ids.append(neo_room["bind_content_id"])
 
         result = []
