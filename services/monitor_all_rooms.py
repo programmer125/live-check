@@ -367,9 +367,9 @@ class MonitorAllRooms(object):
                     if elm["room_start_time"] < datetime.now():
                         errors.append("定时的开始时间已过期")
                     if elm["room_end_time"] < elm["room_start_time"] + timedelta(
-                        minutes=60
+                        minutes=30
                     ):
-                        errors.append("预定的直播时间过短")
+                        errors.append("预约的直播时长不足30分钟")
 
                 # if elm["max_not_match_time"]:
                 #     if datetime.now() > elm["max_not_match_time"] + timedelta(
