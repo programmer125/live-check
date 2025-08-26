@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     rocketmq_ai_qa_results_topic: str = ""
     rocketmq_ai_qa_results_live_check_consumer: str = ""
 
+    redis_uri: str = ""
+
     normal_playlist_redis_uri: str = ""
     realtime_playlist_redis_uri: str = ""
 

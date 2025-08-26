@@ -3,10 +3,13 @@
 # @Time : 2025/3/28 13:52
 # @File : demo.py
 import traceback
+from time import time
 
+import redis
 from fastapi import APIRouter, Query
 
 import crud
+from configs.settings import settings
 from web.schemas.response_schema import ResponseModel
 from libs.log_client import Logger
 
@@ -32,3 +35,14 @@ def manual_ignore(room_id: int = Query(...)):
     except Exception as exc:
         logger.error(f"忽略失败:{traceback.format_exc()}")
         return ResponseModel(code=500, message=f"忽略失败：{exc}")
+
+
+@router.get("/reset_comment_crawl_time", response_model=ResponseModel)
+def reset_comment_crawl_time():
+    try:
+        conn = redis.from_url(settings.redis_uri)
+        conn.set("live-check:reset_comment_crawl_time", str(time()))
+        return ResponseModel(message="重置成功")
+    except Exception as exc:
+        logger.error(f"重置失败:{traceback.format_exc()}")
+        return ResponseModel(code=500, message=f"重置失败：{exc}")
