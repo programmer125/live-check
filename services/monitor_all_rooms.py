@@ -37,41 +37,11 @@ class MonitorAllRooms(object):
 
     # 查找销销所有未关闭的直播，与推流未结束的直播间，取并集
     def get_neo_rooms(self):
-        # 推流未关闭的直播间
-        stander_rooms = self.playlist_client.fetch_all(
-            "SELECT bind_id FROM playlist_control.room where status not in (3, 4)"
-        )
-        realtime_rooms = self.playlist_client.fetch_all(
-            "SELECT bind_id FROM playlist_control.rt_room where status not in (4, 5, 10)"
-        )
-        pushing_bind_ids = []
-        for room in stander_rooms + realtime_rooms:
-            pushing_bind_ids.append(room["bind_id"])
-
-        # 2025-08-20 手动将所有异常状态回正，这之前的弃播不再处理
+        # 2025-08-19 手动将所有异常状态回正，这之前的弃播不再处理
         neo_rooms = self.neoailive_client.fetch_all(
-            "SELECT * FROM neoailive_db.n_room where live_real_status != 40 and `status` = 0 and create_time > '2025-08-20'"
+            "SELECT * FROM neoailive_db.n_room where has_checked = 0 and create_time > '2025-08-19'"
         )
-        result = [dict(elm) for elm in neo_rooms]
-
-        extra_bind_ids = list(
-            set(pushing_bind_ids) - set([elm["id"] for elm in result])
-        )
-        if extra_bind_ids:
-            bind_ids = ",".join([str(elm) for elm in extra_bind_ids])
-            neo_rooms = self.neoailive_client.fetch_all(
-                f"SELECT * FROM neoailive_db.n_room where id in ({bind_ids})"
-            )
-            for elm in neo_rooms:
-                result.append(dict(elm))
-
-        # 已经检测过的直播间直接忽略
-        ignore_records = self.neoailive_client.fetch_all(
-            "SELECT room_id FROM neoailive_db.n_live_check where `status` = 1 or `is_ignore` = 1"
-        )
-        ignore_bind_ids = {elm["room_id"] for elm in ignore_records}
-
-        return [elm for elm in result if elm["id"] not in ignore_bind_ids]
+        return [dict(elm) for elm in neo_rooms]
 
     def get_neo_contents(self, content_ids):
         content_ids = ",".join([str(elm) for elm in content_ids])
@@ -373,14 +343,6 @@ class MonitorAllRooms(object):
         # 最新记录
         records = self.get_records()
 
-        # 历史记录
-        history_records = self.neoailive_client.fetch_all(
-            "SELECT room_id FROM neoailive_db.n_live_check where room_id in ({})".format(
-                ",".join(str(elm["room_id"]) for elm in records)
-            )
-        )
-        history_record_ids = {elm["room_id"] for elm in history_records}
-
         # 逐条分析
         new_record_ids = []
         for elm in records:
@@ -436,8 +398,11 @@ class MonitorAllRooms(object):
 
                 if elm["room_live_status"] == 40:
                     elm["status"] = 1
+                    crud.neo_room.update_by_id(
+                        record_id=elm["room_id"], data={"has_checked": 1}
+                    )
 
-            if elm["room_id"] in history_record_ids:
+            if crud.neo_live_check.get_count(room_id=elm["room_id"]):
                 crud.neo_live_check.update_by_condition(
                     room_id=elm["room_id"], data=elm
                 )
