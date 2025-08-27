@@ -26,6 +26,8 @@ logger = Logger(__file__)
 
 class MonitorAllRooms(object):
     def __init__(self):
+        self.redis_client = redis.StrictRedis.from_url(settings.redis_uri)
+
         self.playlist_session = PlaylistSessionLocal()
         self.playlist_client = MysqlClient(self.playlist_session)
 
@@ -36,16 +38,18 @@ class MonitorAllRooms(object):
             host=settings.es_host, user=settings.es_user, password=settings.es_password
         )
 
-        self.redis_client = redis.StrictRedis.from_url(settings.redis_uri)
+        self.comment_crawl_time = self.get_comment_crawl_time()
+
+    def get_comment_crawl_time(self):
         comment_crawl_time = self.redis_client.get(
             "live-check:reset_comment_crawl_time"
         )
         if comment_crawl_time:
-            self.comment_crawl_time = datetime.fromtimestamp(
-                float(comment_crawl_time.decode())
-            ).strftime("%Y-%m-%d %H:%M:%S")
+            return datetime.fromtimestamp(float(comment_crawl_time.decode())).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
         else:
-            self.comment_crawl_time = "2025-08-20 00:00:00"
+            return "2025-08-20 00:00:00"
 
     # 查找销销所有未关闭的直播，与推流未结束的直播间，取并集
     def get_neo_rooms(self):
