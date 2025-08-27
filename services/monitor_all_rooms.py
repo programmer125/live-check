@@ -448,9 +448,9 @@ class MonitorAllRooms(object):
                         and datetime.strptime(
                             history["pop_bag_time"], "%Y-%m-%d %H:%M:%S"
                         )
-                        < datetime.now() - timedelta(minutes=5)
+                        < datetime.now() - timedelta(minutes=10)
                     ):
-                        errors.append("5分钟内没有弹袋")
+                        errors.append("10分钟内没有弹袋")
 
                     if history and history["push_error_count"] > 5:
                         errors.append("推流重启次数大于5")
