@@ -86,6 +86,7 @@ class MonitorAllRooms(object):
                             )
                         )
                         cache_info["last_send_time"] = time()
+                        cache_info["error_msg"] = record["error_msg"]
                         self.set_record_cache(room_id, cache_info)
                 else:
                     # 首次出错持续20分钟后发送提醒
@@ -99,14 +100,20 @@ class MonitorAllRooms(object):
                             )
                         )
                         cache_info["last_send_time"] = time()
+                        cache_info["error_msg"] = record["error_msg"]
                         self.set_record_cache(room_id, cache_info)
             else:
-                self.set_record_cache(room_id, {"first_time": time()})
+                self.set_record_cache(
+                    room_id, {"first_time": time(), "error_msg": record["error_msg"]}
+                )
         else:
             if cache_info:
                 self.alert_client.send_success_message(
-                    "场次 <a href='{}'>{}</a> ({}) 已恢复".format(
-                        self.link_url.format(room_id), room_id, record["auth_shop_name"]
+                    "场次 <a href='{}'>{}</a> ({}) 已恢复\n{}".format(
+                        self.link_url.format(room_id),
+                        room_id,
+                        record["auth_shop_name"],
+                        cache_info.get("error_msg"),
                     )
                 )
                 self.delete_record_cache(room_id)
