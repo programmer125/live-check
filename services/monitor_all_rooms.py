@@ -388,6 +388,12 @@ class MonitorAllRooms(object):
 
         # 逐条分析
         for elm in records:
+            # 历史记录
+            history = crud.neo_live_check.fetch_one(
+                fields=["id", "pop_bag_time"], room_id=elm["room_id"]
+            )
+
+            # 记录错误
             errors = []
             try:
                 # if elm["room_status"]:
@@ -425,6 +431,11 @@ class MonitorAllRooms(object):
                     errors.append("互动响应时长超过15秒")
                 # if elm["match_success_rate"] < 0.5:
                 #     errors.append("互动匹配成功率低于50%")
+
+                if history and datetime.strptime(
+                    history["pop_bag_time"], "%Y-%m-%d %H:%M:%S"
+                ) < datetime.now() - timedelta(minutes=5):
+                    errors.append("5分钟内没有弹袋")
             except Exception as exc:
                 errors.append(str(exc))
 
@@ -443,11 +454,10 @@ class MonitorAllRooms(object):
                         record_id=elm["room_id"], data={"has_checked": 1}
                     )
 
-            if crud.neo_live_check.get_count(room_id=elm["room_id"]):
-                crud.neo_live_check.update_by_condition(
-                    room_id=elm["room_id"], data=elm
-                )
+            if history:
+                crud.neo_live_check.update_by_id(record_id=history["id"], data=elm)
             else:
+                elm["pop_bag_time"] = datetime.now()
                 crud.neo_live_check.create(data=elm)
 
             # 发送告警信息
