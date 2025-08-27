@@ -43,6 +43,8 @@ class MonitorAllRooms(object):
 
         self.comment_crawl_time = self.get_comment_crawl_time()
 
+        self.link_url = "http://114.132.162.71:3000/d/bew1ihhgk9a80b/e79b91-e68ea7-e5a4a7-e79b98-e8afa6-e68385?folderUid=aeapw6qsrjfggd&orgId=1&from=now-6h&to=now&timezone=browser&refresh=5s&var-query0=&var-room_id={}&tab=transformations"
+
     def get_comment_crawl_time(self):
         comment_crawl_time = self.redis_client.get(
             "live-check:reset_comment_crawl_time"
@@ -76,8 +78,11 @@ class MonitorAllRooms(object):
                     # 已经发送过的记录，每小时提醒一次
                     if time() - cache_info.get("last_send_time") > 60 * 60:
                         self.alert_client.send_error_message(
-                            "场次 {} ({})\n{}".format(
-                                room_id, record["auth_shop_name"], record["error_msg"]
+                            "场次 <a href='{}'>{}</a> ({})\n{}".format(
+                                self.link_url.format(room_id),
+                                room_id,
+                                record["auth_shop_name"],
+                                record["error_msg"],
                             )
                         )
                         cache_info["last_send_time"] = time()
@@ -86,8 +91,11 @@ class MonitorAllRooms(object):
                     # 首次出错持续10分钟后发送提醒
                     if time() - cache_info.get("first_time") > 60 * 10:
                         self.alert_client.send_error_message(
-                            "场次 {} ({})\n{}".format(
-                                room_id, record["auth_shop_name"], record["error_msg"]
+                            "场次 <a href='{}'>{}</a> ({})\n{}".format(
+                                self.link_url.format(room_id),
+                                room_id,
+                                record["auth_shop_name"],
+                                record["error_msg"],
                             )
                         )
                         cache_info["last_send_time"] = time()
@@ -97,7 +105,9 @@ class MonitorAllRooms(object):
         else:
             if cache_info:
                 self.alert_client.send_success_message(
-                    "场次 {} ({}) 已恢复".format(room_id, record["auth_shop_name"])
+                    "场次 <a href='{}'>{}</a> ({}) 已恢复".format(
+                        self.link_url.format(room_id), room_id, record["auth_shop_name"]
+                    )
                 )
                 self.delete_record_cache(room_id)
 
@@ -248,8 +258,11 @@ class MonitorAllRooms(object):
                 for reason in ["废弃未在播直播房间", "超时关闭直播", "已达最大可开播数量"]:
                     if self.check_abandon_reason(neo_room["id"], reason):
                         self.alert_client.send_error_message(
-                            "场次 {} ({})\n因为 {} 弃播".format(
-                                neo_room["id"], neo_auth.get("shop_name"), reason
+                            "场次 <a href='{}'>{}</a> ({})\n因为 {} 弃播".format(
+                                self.link_url.format(neo_room["id"]),
+                                neo_room["id"],
+                                neo_auth.get("shop_name"),
+                                reason,
                             )
                         )
                         neo_room["live_real_status"] = 40
