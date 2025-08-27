@@ -50,6 +50,8 @@ class Settings(BaseSettings):
     # 停止推流任务api
     stop_push_task_api: str = ""
 
+    alert_service_host: str = "http://119.91.243.52:8000"
+
     # 实时版推流日志路径
     log_path: str = "/root/rt-playlist-control/logs"
 
