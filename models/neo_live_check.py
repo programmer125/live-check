@@ -34,6 +34,7 @@ class NeoLiveCheck(Base):
     match_success_rate = Column(DECIMAL, nullable=True, default=None, comment="结束时间")
     effect_rate = Column(DECIMAL, nullable=True, default=None, comment="结束时间")
     effect_duration = Column(DECIMAL, nullable=True, default=None, comment="结束时间")
+    pop_bag_time = Column(TIMESTAMP, nullable=True, default=None, comment="开始时间")
     is_error = Column(Integer, nullable=True, comment="绑定内容ID")
     error_msg = Column(String(255), default="", comment="直播间标题")
     is_ignore = Column(SmallInteger, default=0, comment="状态：0正常；1删除")
