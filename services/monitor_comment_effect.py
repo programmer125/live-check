@@ -73,8 +73,13 @@ class MonitorLiveCommentEffect(object):
 
                     record = json.loads(record)
                     body = record["body"]
+                    question = (
+                        body["origin_question"]
+                        if body.get("origin_question")
+                        else body["question"]
+                    )
                     comment_id = get_text_md5(
-                        "{}-{}".format(body.get("question"), body.get("create_time"))
+                        "{}-{}".format(question, body.get("create_time"))
                     )
 
                     crud.neo_live_comment.update_by_condition(
