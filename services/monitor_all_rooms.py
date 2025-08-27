@@ -3,8 +3,9 @@
 # @Time : 2025/8/20 11:35
 # @File : monitor_all_rooms.py
 import sys
+import json
 from copy import deepcopy
-from time import sleep
+from time import sleep, time
 from pathlib import Path
 from datetime import datetime, timedelta
 
@@ -19,6 +20,7 @@ from db.session import PlaylistSessionLocal, NeoailiveSessionLocal
 from libs.sync_es_client import ESClient
 from libs.sync_mysql_client import MysqlClient
 from libs.log_client import Logger
+from libs.sync_alert_client import AlertClient
 
 
 logger = Logger(__file__)
@@ -27,6 +29,7 @@ logger = Logger(__file__)
 class MonitorAllRooms(object):
     def __init__(self):
         self.redis_client = redis.StrictRedis.from_url(settings.redis_uri)
+        self.alert_client = AlertClient()
 
         self.playlist_session = PlaylistSessionLocal()
         self.playlist_client = MysqlClient(self.playlist_session)
@@ -50,6 +53,53 @@ class MonitorAllRooms(object):
             )
         else:
             return "2025-08-20 00:00:00"
+
+    def get_record_cache(self, room_id):
+        info = self.redis_client.hget("live-check:record_info", str(room_id))
+        if info:
+            return json.loads(info)
+        else:
+            return None
+
+    def set_record_cache(self, room_id, info):
+        self.redis_client.hset("live-check:record_info", str(room_id), json.dumps(info))
+
+    def delete_record_cache(self, room_id):
+        self.redis_client.hdel("live-check:record_info", str(room_id))
+
+    def send_alert_message(self, record):
+        room_id = record["room_id"]
+        cache_info = self.get_record_cache(room_id)
+        if record["is_error"] == 1:
+            if cache_info:
+                if cache_info.get("last_send_time"):
+                    # 已经发送过的记录，每小时提醒一次
+                    if time() - cache_info.get("last_send_time") > 60 * 60:
+                        self.alert_client.send_error_message(
+                            "场次 {} ({})\n{}".format(
+                                room_id, record["auth_shop_name"], record["error_msg"]
+                            )
+                        )
+                        cache_info["last_send_time"] = time()
+                        self.set_record_cache(room_id, cache_info)
+                else:
+                    # 首次出错持续10分钟后发送提醒
+                    if time() - cache_info.get("first_time") > 60 * 10:
+                        self.alert_client.send_error_message(
+                            "场次 {} ({})\n{}".format(
+                                room_id, record["auth_shop_name"], record["error_msg"]
+                            )
+                        )
+                        cache_info["last_send_time"] = time()
+                        self.set_record_cache(room_id, cache_info)
+            else:
+                self.set_record_cache(room_id, {"first_time": time()})
+        else:
+            if cache_info:
+                self.alert_client.send_success_message(
+                    "场次 {} ({}) 已恢复".format(room_id, record["auth_shop_name"])
+                )
+                self.delete_record_cache(room_id)
 
     # 查找销销所有未关闭的直播，与推流未结束的直播间，取并集
     def get_neo_rooms(self):
@@ -426,6 +476,9 @@ class MonitorAllRooms(object):
                 )
             else:
                 crud.neo_live_check.create(data=elm)
+
+            # 发送告警信息
+            self.send_alert_message(elm)
 
         logger.info(f"检测直播间 {len(records)} 个")
 
