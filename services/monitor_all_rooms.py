@@ -390,7 +390,8 @@ class MonitorAllRooms(object):
         for elm in records:
             # 历史记录
             history = crud.neo_live_check.fetch_one(
-                fields=["id", "pop_bag_time"], room_id=elm["room_id"]
+                fields=["id", "pop_bag_time", "push_error_count"],
+                room_id=elm["room_id"],
             )
 
             # 记录错误
@@ -439,6 +440,9 @@ class MonitorAllRooms(object):
                     < datetime.now() - timedelta(minutes=5)
                 ):
                     errors.append("5分钟内没有弹袋")
+
+                if history and history["push_error_count"] > 5:
+                    errors.append("推流重启次数大于5")
             except Exception as exc:
                 errors.append(str(exc))
 
