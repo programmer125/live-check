@@ -164,8 +164,7 @@ class MonitorAllRooms(object):
 
         return result
 
-    def check_manual_stop(self, room_id):
-        # 查询最后一次开播
+    def check_abandon_reason(self, room_id, reason):
         count, logs = self.es_manager.search(
             "neoailive-api-service",
             body={
@@ -182,51 +181,7 @@ class MonitorAllRooms(object):
                                         {
                                             "multi_match": {
                                                 "type": "phrase",
-                                                "query": "废弃未在播直播房间",
-                                                "lenient": True,
-                                            }
-                                        },
-                                        {
-                                            "multi_match": {
-                                                "type": "phrase",
-                                                "query": str(room_id),
-                                                "lenient": True,
-                                            }
-                                        },
-                                    ]
-                                }
-                            },
-                        ],
-                        "should": [],
-                        "must_not": [],
-                    }
-                },
-            },
-        )
-
-        if count:
-            return True
-        return False
-
-    def check_timeout_stop(self, room_id):
-        # 查询最后一次开播
-        count, logs = self.es_manager.search(
-            "neoailive-api-service",
-            body={
-                "size": 10,
-                "sort": [{"@timestamp": {"order": "desc", "unmapped_type": "boolean"}}],
-                "version": True,
-                "query": {
-                    "bool": {
-                        "must": [],
-                        "filter": [
-                            {
-                                "bool": {
-                                    "filter": [
-                                        {
-                                            "multi_match": {
-                                                "type": "phrase",
-                                                "query": "超时关闭直播",
+                                                "query": reason,
                                                 "lenient": True,
                                             }
                                         },
@@ -288,12 +243,17 @@ class MonitorAllRooms(object):
             if neo_room["status"] != 0:
                 neo_room["live_real_status"] = 40
 
-            # 判定弃播原因，如果是手动停止或超时未开播，则修改状态为结束
+            # 判定弃播原因，如果是正常原因，则修改状态为结束
             if neo_room["live_real_status"] == 80:
-                if self.check_manual_stop(neo_room["id"]):
-                    neo_room["live_real_status"] = 40
-                if self.check_timeout_stop(neo_room["id"]):
-                    neo_room["live_real_status"] = 40
+                for reason in ["废弃未在播直播房间", "超时关闭直播", "已达最大可开播数量"]:
+                    if self.check_abandon_reason(neo_room["id"], reason):
+                        self.alert_client.send_error_message(
+                            "场次 {} ({})\n因为 {} 弃播".format(
+                                neo_room["id"], neo_auth.get("shop_name"), reason
+                            )
+                        )
+                        neo_room["live_real_status"] = 40
+                        break
 
             # 直播间是定时中，直播内容如果确实是直播中，则修改状态
             if (
