@@ -88,8 +88,8 @@ class MonitorAllRooms(object):
                         cache_info["last_send_time"] = time()
                         self.set_record_cache(room_id, cache_info)
                 else:
-                    # 首次出错持续10分钟后发送提醒
-                    if time() - cache_info.get("first_time") > 60 * 10:
+                    # 首次出错持续20分钟后发送提醒
+                    if time() - cache_info.get("first_time") > 60 * 20:
                         self.alert_client.send_error_message(
                             "场次 <a href='{}'>{}</a> ({})\n{}".format(
                                 self.link_url.format(room_id),
