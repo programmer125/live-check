@@ -108,14 +108,15 @@ class MonitorAllRooms(object):
                 )
         else:
             if cache_info:
-                self.alert_client.send_success_message(
-                    "场次 <a href='{}'>{}</a> ({}) 已恢复\n{}".format(
-                        self.link_url.format(room_id),
-                        room_id,
-                        record["auth_shop_name"],
-                        cache_info.get("error_msg"),
+                if cache_info.get("last_send_time"):
+                    self.alert_client.send_success_message(
+                        "场次 <a href='{}'>{}</a> ({}) 已恢复\n{}".format(
+                            self.link_url.format(room_id),
+                            room_id,
+                            record["auth_shop_name"],
+                            cache_info.get("error_msg"),
+                        )
                     )
-                )
                 self.delete_record_cache(room_id)
 
     # 查找销销所有未关闭的直播，与推流未结束的直播间，取并集
