@@ -27,6 +27,7 @@ class NeoLiveCheck(Base):
     playlist_push_status = Column(Integer, nullable=True, comment="绑定内容ID")
     playlist_live_id = Column(String(128), default="", comment="直播间标题")
     playlist_live_url = Column(String(255), default="", comment="直播间标题")
+    playlist_push_log = Column(String(255), default="", comment="直播间标题")
     auth_platform_id = Column(Integer, nullable=True, comment="绑定内容ID")
     auth_shop_name = Column(String(128), default="", comment="直播间标题")
     auth_short_name = Column(String(255), default="", comment="直播间标题")

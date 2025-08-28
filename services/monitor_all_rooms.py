@@ -362,6 +362,37 @@ class MonitorAllRooms(object):
                 effect_duration = 0
 
             is_rt = 0 if neo_content.get("buy_version") == 1 else 1
+            if is_rt:
+                machine_id = playlist_room.get("machine_id")
+                if machine_id == "aliyun01":
+                    playlist_push_log = (
+                        "http://8.136.102.77:6860/logs/start_room_{}.log".format(
+                            neo_room["id"]
+                        )
+                    )
+                elif machine_id == "aliyun02":
+                    playlist_push_log = (
+                        "http://8.149.232.230:6860/logs/start_room_{}.log".format(
+                            neo_room["id"]
+                        )
+                    )
+                elif machine_id == "aliyun03":
+                    playlist_push_log = (
+                        "http://47.99.167.107:6860/logs/start_room_{}.log".format(
+                            neo_room["id"]
+                        )
+                    )
+                elif machine_id == "aliyun04":
+                    playlist_push_log = (
+                        "http://120.26.230.58:6860/logs/start_room_{}.log".format(
+                            neo_room["id"]
+                        )
+                    )
+                else:
+                    playlist_push_log = ""
+            else:
+                playlist_push_log = ""
+
             result.append(
                 {
                     "room_id": neo_room["id"],
@@ -378,6 +409,7 @@ class MonitorAllRooms(object):
                     "playlist_push_status": playlist_room.get("push_status"),
                     "playlist_live_id": playlist_room.get("live_id"),
                     "playlist_live_url": playlist_room.get("live_url"),
+                    "playlist_push_log": playlist_push_log,
                     "auth_platform_id": neo_auth.get("platform_id"),
                     "auth_shop_name": neo_auth.get("shop_name"),
                     "auth_short_name": neo_auth.get("short_name"),
