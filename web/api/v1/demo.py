@@ -42,6 +42,8 @@ def reset_comment_crawl_time():
     try:
         conn = redis.from_url(settings.redis_uri)
         conn.set("live-check:reset_comment_crawl_time", str(time()))
+
+        conn.delete("live-check:record_info")
         return ResponseModel(message="重置成功")
     except Exception as exc:
         logger.error(f"重置失败:{traceback.format_exc()}")
