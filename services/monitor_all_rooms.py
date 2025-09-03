@@ -446,6 +446,10 @@ class MonitorAllRooms(object):
                     "effect_rate": round(effect_rate, 2),
                     "effect_duration": round(effect_duration, 2),
                     "pop_bag_time": self.get_pop_bag_time(neo_room["id"]),
+                    "cookie_expired": self.check_client.is_cookie_expired(
+                        playlist_room.get("platform"),
+                        playlist_room.get("shop_short_name"),
+                    ),
                 }
             )
 
@@ -465,10 +469,8 @@ class MonitorAllRooms(object):
             # 记录错误
             errors = []
             try:
-                # if elm["room_status"]:
-                #     errors.append("销销直播间已删除")
-                # if elm["content_status"]:
-                #     errors.append("销销直播内容已删除")
+                if elm.pop("cookie_expired"):
+                    errors.append("cookie过期")
                 if elm["room_live_status"] != elm["content_live_status"]:
                     errors.append("销销直播内容与直播间状态不一致")
                 if elm["room_live_status"] == 20 and elm["playlist_push_status"] != 2:
