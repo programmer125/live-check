@@ -350,7 +350,7 @@ class MonitorAllRooms(object):
             if neo_room["live_real_status"] == 80:
                 if self.check_adandon_is_normal(neo_room, neo_auth):
                     neo_room["live_real_status"] = 40
-                    neo_content["live_status"] = 10
+                    neo_content["live_status"] = 40
 
             # 直播间是定时中，直播内容如果确实是直播中，则修改状态
             if (
