@@ -63,13 +63,16 @@ class MonitorLiveCommentMatch(object):
                         "answer": body,
                         "match_time": datetime.now(),
                         "is_match": is_match,
+                        "reason": body.get("reason"),
                     },
                 )
 
                 logger.info(json.dumps(body, ensure_ascii=False))
             except Exception:
                 logger.error(
-                    "消费失败：\nexc: {}\nbody: {}".format(traceback.format_exc(), msg.body)
+                    "消费失败：\nexc: {}\nbody: {}".format(
+                        traceback.format_exc(), msg.body
+                    )
                 )
 
             return ConsumeStatus.CONSUME_SUCCESS
