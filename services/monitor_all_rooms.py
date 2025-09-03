@@ -198,6 +198,57 @@ class MonitorAllRooms(object):
             return True
         return False
 
+    def get_pop_bag_time(self, room_id):
+        count, logs = self.es_manager.search(
+            "room-lifespan",
+            body={
+                "size": 1,
+                "sort": [{"@timestamp": {"order": "desc", "unmapped_type": "boolean"}}],
+                "version": True,
+                "query": {
+                    "bool": {
+                        "must": [],
+                        "filter": [
+                            {
+                                "bool": {
+                                    "filter": [
+                                        {
+                                            "bool": {
+                                                "should": [
+                                                    {"match": {"room_id": room_id}}
+                                                ],
+                                                "minimum_should_match": 1,
+                                            }
+                                        },
+                                        {
+                                            "multi_match": {
+                                                "type": "phrase",
+                                                "query": "触发弹袋",
+                                                "lenient": True,
+                                            }
+                                        },
+                                        {
+                                            "multi_match": {
+                                                "type": "phrase",
+                                                "query": "'message': 'success'",
+                                                "lenient": True,
+                                            }
+                                        },
+                                    ]
+                                }
+                            },
+                        ],
+                        "should": [],
+                        "must_not": [],
+                    }
+                },
+            },
+        )
+
+        if count:
+            return datetime.strptime(logs[0]["timestamp"], "%Y-%m-%d %H:%M:%S")
+        return datetime.strptime("2025-01-01 00:00:00", "%Y-%m-%d %H:%M:%S")
+
     def get_records(self):
         # 查询非结束的直播间
         neo_rooms = self.get_neo_rooms()
@@ -394,6 +445,7 @@ class MonitorAllRooms(object):
                     "match_success_rate": round(match_success_rate, 2),
                     "effect_rate": round(effect_rate, 2),
                     "effect_duration": round(effect_duration, 2),
+                    "pop_bag_time": self.get_pop_bag_time(neo_room["id"]),
                 }
             )
 
@@ -407,8 +459,7 @@ class MonitorAllRooms(object):
         for elm in records:
             # 历史记录
             history = crud.neo_live_check.fetch_one(
-                fields=["id", "pop_bag_time", "push_error_count"],
-                room_id=elm["room_id"],
+                fields=["id"], room_id=elm["room_id"]
             )
 
             # 记录错误
@@ -451,19 +502,9 @@ class MonitorAllRooms(object):
                     #     errors.append("互动响应时长超过15秒")
                     # if elm["match_success_rate"] < 0.5:
                     #     errors.append("互动匹配成功率低于50%")
-                    #
-                    # if (
-                    #     history
-                    #     and history["pop_bag_time"]
-                    #     and datetime.strptime(
-                    #         history["pop_bag_time"], "%Y-%m-%d %H:%M:%S"
-                    #     )
-                    #     < datetime.now() - timedelta(minutes=10)
-                    # ):
-                    #     errors.append("10分钟内没有弹袋")
-                    #
-                    # if history and history["push_error_count"] > 5:
-                    #     errors.append("推流重启次数大于5")
+
+                    if elm["pop_bag_time"] < datetime.now() - timedelta(minutes=60):
+                        errors.append("60分钟内没有弹袋")
             except Exception as exc:
                 errors.append(str(exc))
 
@@ -485,7 +526,6 @@ class MonitorAllRooms(object):
             if history:
                 crud.neo_live_check.update_by_id(record_id=history["id"], data=elm)
             else:
-                elm["pop_bag_time"] = datetime.now()
                 crud.neo_live_check.create(data=elm)
 
             # 发送告警信息
