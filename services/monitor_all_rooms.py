@@ -3,13 +3,11 @@
 # @Time : 2025/8/20 11:35
 # @File : monitor_all_rooms.py
 import sys
-import json
 from copy import deepcopy
 from time import sleep, time
 from pathlib import Path
 from datetime import datetime, timedelta
 
-import redis
 import loguru
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -21,6 +19,7 @@ from libs.sync_es_client import ESClient
 from libs.sync_mysql_client import MysqlClient
 from libs.log_client import Logger
 from libs.sync_alert_client import AlertClient
+from libs.check_client import CheckClient
 
 
 logger = Logger(__file__)
@@ -28,7 +27,7 @@ logger = Logger(__file__)
 
 class MonitorAllRooms(object):
     def __init__(self):
-        self.redis_client = redis.StrictRedis.from_url(settings.redis_uri)
+        self.check_client = CheckClient()
         self.alert_client = AlertClient()
 
         self.playlist_session = PlaylistSessionLocal()
@@ -41,37 +40,13 @@ class MonitorAllRooms(object):
             host=settings.es_host, user=settings.es_user, password=settings.es_password
         )
 
-        self.comment_crawl_time = self.get_comment_crawl_time()
+        self.comment_crawl_time = self.check_client.get_comment_crawl_time()
 
         self.link_url = "http://114.132.162.71:3000/d/bew1ihhgk9a80b/e79b91-e68ea7-e5a4a7-e79b98-e8afa6-e68385?folderUid=aeapw6qsrjfggd&orgId=1&from=now-6h&to=now&timezone=browser&refresh=5s&var-query0=&var-room_id={}&tab=transformations"
 
-    def get_comment_crawl_time(self):
-        comment_crawl_time = self.redis_client.get(
-            "live-check:reset_comment_crawl_time"
-        )
-        if comment_crawl_time:
-            return datetime.fromtimestamp(float(comment_crawl_time.decode())).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            )
-        else:
-            return "2025-08-20 00:00:00"
-
-    def get_record_cache(self, room_id):
-        info = self.redis_client.hget("live-check:record_info", str(room_id))
-        if info:
-            return json.loads(info)
-        else:
-            return None
-
-    def set_record_cache(self, room_id, info):
-        self.redis_client.hset("live-check:record_info", str(room_id), json.dumps(info))
-
-    def delete_record_cache(self, room_id):
-        self.redis_client.hdel("live-check:record_info", str(room_id))
-
     def send_alert_message(self, record):
         room_id = record["room_id"]
-        cache_info = self.get_record_cache(room_id)
+        cache_info = self.check_client.get_record_cache(room_id)
         if record["is_error"] == 1:
             if cache_info:
                 if cache_info.get("last_send_time"):
@@ -87,7 +62,7 @@ class MonitorAllRooms(object):
                         )
                         cache_info["last_send_time"] = time()
                         cache_info["error_msg"] = record["error_msg"]
-                        self.set_record_cache(room_id, cache_info)
+                        self.check_client.set_record_cache(room_id, cache_info)
                 else:
                     # 首次出错持续20分钟后发送提醒
                     if time() - cache_info.get("first_time") > 60 * 20:
@@ -101,9 +76,9 @@ class MonitorAllRooms(object):
                         )
                         cache_info["last_send_time"] = time()
                         cache_info["error_msg"] = record["error_msg"]
-                        self.set_record_cache(room_id, cache_info)
+                        self.check_client.set_record_cache(room_id, cache_info)
             else:
-                self.set_record_cache(
+                self.check_client.set_record_cache(
                     room_id, {"first_time": time(), "error_msg": record["error_msg"]}
                 )
         else:
@@ -117,7 +92,7 @@ class MonitorAllRooms(object):
                             cache_info.get("error_msg"),
                         )
                     )
-                self.delete_record_cache(room_id)
+                self.check_client.delete_record_cache(room_id)
 
     # 查找销销所有未关闭的直播，与推流未结束的直播间，取并集
     def get_neo_rooms(self):
