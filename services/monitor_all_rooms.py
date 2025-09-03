@@ -553,8 +553,8 @@ class MonitorAllRooms(object):
                     # if elm["match_success_rate"] < 0.5:
                     #     errors.append("互动匹配成功率低于50%")
 
-                    if elm["pop_bag_time"] < datetime.now() - timedelta(minutes=60):
-                        errors.append("60分钟内没有弹袋")
+                    # if elm["pop_bag_time"] < datetime.now() - timedelta(minutes=60):
+                    #     errors.append("60分钟内没有弹袋")
             except Exception as exc:
                 errors.append(str(exc))
 
