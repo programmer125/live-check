@@ -155,7 +155,7 @@ class MonitorAllRooms(object):
 
         return result
 
-    def check_abandon_reason(self, room_id, reason):
+    def check_neoailive_reason(self, room_id, reason):
         count, logs = self.es_manager.search(
             "neoailive-api-service",
             body={
@@ -196,6 +196,67 @@ class MonitorAllRooms(object):
 
         if count:
             return True
+        return False
+
+    def check_assistant_reason(self, room_id, reason):
+        count, logs = self.es_manager.search(
+            "living-assistant-service",
+            body={
+                "size": 10,
+                "sort": [{"@timestamp": {"order": "desc", "unmapped_type": "boolean"}}],
+                "version": True,
+                "query": {
+                    "bool": {
+                        "must": [],
+                        "filter": [
+                            {
+                                "bool": {
+                                    "filter": [
+                                        {
+                                            "multi_match": {
+                                                "type": "phrase",
+                                                "query": reason,
+                                                "lenient": True,
+                                            }
+                                        },
+                                        {
+                                            "multi_match": {
+                                                "type": "phrase",
+                                                "query": str(room_id),
+                                                "lenient": True,
+                                            }
+                                        },
+                                    ]
+                                }
+                            },
+                        ],
+                        "should": [],
+                        "must_not": [],
+                    }
+                },
+            },
+        )
+
+        if count:
+            return True
+        return False
+
+    # 检查弃播的是否是出于正常原因
+    def check_adandon_is_normal(self, neo_room, neo_auth):
+        for reason in ["废弃未在播直播房间", "超时关闭直播", "已达最大可开播数量"]:
+            if self.check_neoailive_reason(neo_room["id"], reason):
+                return True
+
+        if self.check_assistant_reason(neo_room["id"], "开播不成功"):
+            return True
+
+        self.alert_client.send_error_message(
+            "场次 <a href='{}'>{}</a> ({})\n因为 未知原因 弃播".format(
+                self.link_url.format(neo_room["id"]),
+                neo_room["id"],
+                neo_auth.get("shop_name"),
+            )
+        )
         return False
 
     def get_pop_bag_time(self, room_id):
@@ -287,22 +348,9 @@ class MonitorAllRooms(object):
 
             # 判定弃播原因，如果是正常原因，则修改状态为结束
             if neo_room["live_real_status"] == 80:
-                for reason in [
-                    "废弃未在播直播房间",
-                    "超时关闭直播",
-                    "已达最大可开播数量",
-                ]:
-                    if self.check_abandon_reason(neo_room["id"], reason):
-                        self.alert_client.send_error_message(
-                            "场次 <a href='{}'>{}</a> ({})\n因为 {} 弃播".format(
-                                self.link_url.format(neo_room["id"]),
-                                neo_room["id"],
-                                neo_auth.get("shop_name"),
-                                reason,
-                            )
-                        )
-                        neo_room["live_real_status"] = 40
-                        break
+                if self.check_adandon_is_normal(neo_room, neo_auth):
+                    neo_room["live_real_status"] = 40
+                    neo_content["live_status"] = 10
 
             # 直播间是定时中，直播内容如果确实是直播中，则修改状态
             if (
