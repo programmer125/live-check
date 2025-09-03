@@ -22,6 +22,7 @@ class NeoLiveComment(Base):
     crawl_time = Column(TIMESTAMP, nullable=True, default=None, comment="开始时间")
     match_time = Column(TIMESTAMP, nullable=True, default=None, comment="结束时间")
     effect_time = Column(TIMESTAMP, nullable=True, default=None, comment="结束时间")
+    traceid = Column(String(100), default="", comment="直播间标题")
     create_time = Column(
         TIMESTAMP, server_default=text("CURRENT_TIMESTAMP"), comment="创建时间"
     )

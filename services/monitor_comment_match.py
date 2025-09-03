@@ -64,6 +64,7 @@ class MonitorLiveCommentMatch(object):
                         "match_time": datetime.now(),
                         "is_match": is_match,
                         "reason": body.get("reason"),
+                        "traceid": body.get("traceid"),
                     },
                 )
 
