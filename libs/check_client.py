@@ -10,6 +10,7 @@ class CheckClient(object):
 
     def __init__(self):
         self.redis_client = redis.StrictRedis.from_url(settings.redis_uri)
+        self.cookie_client = redis.StrictRedis.from_url(settings.cookie_redis_uri)
 
     def get_comment_crawl_time(self):
         comment_crawl_time = self.redis_client.get(
@@ -34,3 +35,10 @@ class CheckClient(object):
 
     def delete_record_cache(self, room_id):
         self.redis_client.hdel("live-check:record_info", str(room_id))
+
+    def is_cookie_expired(self, platform, short_name):
+        results = self.cookie_client.hgetall(f"{platform}:{short_name}")
+        if results:
+            return False
+
+        return True

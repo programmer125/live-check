@@ -41,6 +41,7 @@ class Settings(BaseSettings):
 
     normal_playlist_redis_uri: str = ""
     realtime_playlist_redis_uri: str = ""
+    cookie_redis_uri: str = ""
 
     # es配置
     es_host: str = ""
