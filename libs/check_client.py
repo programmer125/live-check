@@ -37,8 +37,7 @@ class CheckClient(object):
         self.redis_client.hdel("live-check:record_info", str(room_id))
 
     def is_cookie_expired(self, platform, short_name):
-        # jd不用cookie
-        if platform == "JD":
+        if platform not in {"TB", "PDD"}:
             return False
 
         results = self.cookie_client.hgetall(f"{platform}:{short_name}")
