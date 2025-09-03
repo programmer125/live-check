@@ -469,7 +469,7 @@ class MonitorAllRooms(object):
             # 记录错误
             errors = []
             try:
-                if elm.pop("cookie_expired"):
+                if elm.pop("cookie_expired") and elm["room_live_status"] == 20:
                     errors.append("cookie过期")
                 if elm["room_live_status"] != elm["content_live_status"]:
                     errors.append("销销直播内容与直播间状态不一致")
