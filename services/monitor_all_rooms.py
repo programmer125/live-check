@@ -170,13 +170,11 @@ class MonitorAllRooms(object):
         result = {}
         for room in stander_rooms:
             room = dict(room)
-            room["is_rt"] = 0
             room["push_status"] = self.convert_stander_status(room["status"])
             result[room["bind_id"]] = room
 
         for room in realtime_rooms:
             room = dict(room)
-            room["is_rt"] = 1
             room["push_status"] = self.convert_realtime_status(room["status"])
             result[room["bind_id"]] = room
 
@@ -263,7 +261,11 @@ class MonitorAllRooms(object):
 
             # 判定弃播原因，如果是正常原因，则修改状态为结束
             if neo_room["live_real_status"] == 80:
-                for reason in ["废弃未在播直播房间", "超时关闭直播", "已达最大可开播数量"]:
+                for reason in [
+                    "废弃未在播直播房间",
+                    "超时关闭直播",
+                    "已达最大可开播数量",
+                ]:
                     if self.check_abandon_reason(neo_room["id"], reason):
                         self.alert_client.send_error_message(
                             "场次 <a href='{}'>{}</a> ({})\n因为 {} 弃播".format(
