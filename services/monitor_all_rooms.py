@@ -445,25 +445,25 @@ class MonitorAllRooms(object):
                             minutes=10
                         ):
                             errors.append("超过10分钟不互动")
-                    if elm["effect_rate"] < 0.8:
-                        errors.append("互动响应率低于80%")
-                    if elm["effect_duration"] > 15:
-                        errors.append("互动响应时长超过15秒")
-                    if elm["match_success_rate"] < 0.5:
-                        errors.append("互动匹配成功率低于50%")
-
-                    if (
-                        history
-                        and history["pop_bag_time"]
-                        and datetime.strptime(
-                            history["pop_bag_time"], "%Y-%m-%d %H:%M:%S"
-                        )
-                        < datetime.now() - timedelta(minutes=10)
-                    ):
-                        errors.append("10分钟内没有弹袋")
-
-                    if history and history["push_error_count"] > 5:
-                        errors.append("推流重启次数大于5")
+                    # if elm["effect_rate"] < 0.8:
+                    #     errors.append("互动响应率低于80%")
+                    # if elm["effect_duration"] > 15:
+                    #     errors.append("互动响应时长超过15秒")
+                    # if elm["match_success_rate"] < 0.5:
+                    #     errors.append("互动匹配成功率低于50%")
+                    #
+                    # if (
+                    #     history
+                    #     and history["pop_bag_time"]
+                    #     and datetime.strptime(
+                    #         history["pop_bag_time"], "%Y-%m-%d %H:%M:%S"
+                    #     )
+                    #     < datetime.now() - timedelta(minutes=10)
+                    # ):
+                    #     errors.append("10分钟内没有弹袋")
+                    #
+                    # if history and history["push_error_count"] > 5:
+                    #     errors.append("推流重启次数大于5")
             except Exception as exc:
                 errors.append(str(exc))
 
