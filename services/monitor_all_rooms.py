@@ -28,19 +28,20 @@ logger = Logger(__file__)
 
 
 ERROR = namedtuple("ERROR", ["code", "priority", "message", "threshold"])
-NEO_STATUS_INCONSISTENT = ERROR(1, 1, "直播内容与直播间状态不一致", 0)
-PUSH_STATUS_INCONSISTENT = ERROR(1, 1, "直播间与推流状态不一致", 0)
-PUSH_REPEAT = ERROR(1, 1, "同一个直播间多路推流", 0)
-COOKIE_EXPIRE = ERROR(1, 1, "cookie已过期", 0)
-AUTO_CLOSE_FAIL = ERROR(1, 1, "预约下播失败", 5 * 60)
-LONG_TIME_NO_QA = ERROR(1, 1, "长时间不互动", 10 * 60)
-QA_EFFECT_RATE_TOO_LOW = ERROR(1, 1, "互动响应率过低", 0.8)
-QA_EFFECT_DURATION_TOO_LONG = ERROR(1, 1, "互动平均响应时长过高", 15)
-QA_MATCH_RATE_TOO_LOW = ERROR(1, 1, "互动匹配率过低", 0.5)
-LONG_TIME_NO_POP_BAG = ERROR(1, 1, "长时间不弹袋", 60 * 60)
-AUTO_OPEN_FAIL = ERROR(1, 1, "预约开播失败", 5 * 60)
-SCHEDULE_TIME_TOO_SHORT = ERROR(1, 1, "预约直播时长过短", 30 * 60)
-NOT_NORMAL_CLOSE = ERROR(1, 1, "非正常原因关播", 0)
+
+AUTO_OPEN_FAIL = ERROR(101, 1, "预约开播失败", 5 * 60)
+NOT_NORMAL_CLOSE = ERROR(102, 1, "非正常原因关播", 0)
+PUSH_REPEAT = ERROR(103, 1, "同一个直播间多路推流", 0)
+COOKIE_EXPIRE = ERROR(104, 1, "cookie已过期", 0)
+LONG_TIME_NO_QA = ERROR(105, 1, "长时间不互动", 10 * 60)
+QA_EFFECT_RATE_TOO_LOW = ERROR(106, 1, "互动响应率过低", 0.8)
+QA_EFFECT_DURATION_TOO_LONG = ERROR(107, 1, "互动平均响应时长过高", 15)
+PUSH_STATUS_INCONSISTENT = ERROR(108, 1, "直播间与推流状态不一致", 0)
+AUTO_CLOSE_FAIL = ERROR(109, 1, "预约下播失败", 5 * 60)
+QA_MATCH_RATE_TOO_LOW = ERROR(110, 1, "互动匹配率过低", 0.5)
+LONG_TIME_NO_POP_BAG = ERROR(111, 1, "长时间不弹袋", 60 * 60)
+SCHEDULE_TIME_TOO_SHORT = ERROR(112, 1, "预约直播时长过短", 30 * 60)
+NEO_STATUS_INCONSISTENT = ERROR(201, 2, "直播内容与直播间状态不一致", 0)
 
 
 class MonitorAllRooms(object):
