@@ -335,6 +335,66 @@ class MonitorAllRooms(object):
             return datetime.strptime(logs[0]["timestamp"], "%Y-%m-%d %H:%M:%S")
         return datetime.strptime("2025-01-01 00:00:00", "%Y-%m-%d %H:%M:%S")
 
+    def get_comment_metric(self, room_id):
+        # 获取所有评论内容
+        comments = self.neoailive_client.fetch_all(
+            "select is_match, crawl_time, match_time, effect_time from neoailive_db.n_live_comment where room_id = {} and crawl_time > '{}' order by crawl_time desc".format(
+                room_id, self.comment_crawl_time
+            )
+        )
+
+        # 评论相关的统计
+        match_success_count = 0
+        match_fail_count = 0
+        effect_count = 0
+        effect_duration = 0
+        for comment in comments:
+            if comment["is_match"] == 1:
+                # 匹配成功
+                match_success_count += 1
+
+                if comment["effect_time"]:
+                    effect_count += 1
+                    effect_duration += (
+                        comment["effect_time"] - comment["crawl_time"]
+                    ).total_seconds()
+            elif comment["is_match"] == 2:
+                # 匹配失败
+                match_fail_count += 1
+            else:
+                pass
+
+        max_not_match_time = None
+        for comment in comments:
+            if comment["is_match"] == 0:
+                max_not_match_time = comment["crawl_time"]
+            else:
+                break
+
+        if match_success_count + match_fail_count > 0:
+            match_success_rate = match_success_count / (
+                match_success_count + match_fail_count
+            )
+        else:
+            match_success_rate = 1
+
+        if match_success_count > 0:
+            effect_rate = effect_count / match_success_count
+        else:
+            effect_rate = 1
+
+        if effect_count > 0:
+            effect_duration = effect_duration / effect_count
+        else:
+            effect_duration = 0
+
+        return {
+            "max_not_match_time": max_not_match_time,
+            "match_success_rate": round(match_success_rate, 2),
+            "effect_rate": round(effect_rate, 2),
+            "effect_duration": round(effect_duration, 2),
+        }
+
     def get_records(self):
         # 查询非结束的直播间
         neo_rooms = self.get_neo_rooms()
@@ -363,6 +423,7 @@ class MonitorAllRooms(object):
         result = []
         for neo_room in neo_rooms:
             original_neo_content = neo_contents.get(neo_room["bind_content_id"], {})
+
             neo_content = deepcopy(original_neo_content)
             neo_auth = neo_auths.get(neo_content["outside_auth_id"], {})
             playlist_room = playlist_rooms.get(neo_room["id"], {})
@@ -410,58 +471,6 @@ class MonitorAllRooms(object):
             ):
                 neo_content["live_status"] = 40
 
-            # 获取所有评论内容
-            comments = self.neoailive_client.fetch_all(
-                "select is_match, crawl_time, match_time, effect_time from neoailive_db.n_live_comment where room_id = {} and crawl_time > '{}' order by crawl_time desc".format(
-                    neo_room["id"], self.comment_crawl_time
-                )
-            )
-
-            # 评论相关的统计
-            match_success_count = 0
-            match_fail_count = 0
-            effect_count = 0
-            effect_duration = 0
-            for comment in comments:
-                if comment["is_match"] == 1:
-                    # 匹配成功
-                    match_success_count += 1
-
-                    if comment["effect_time"]:
-                        effect_count += 1
-                        effect_duration += (
-                            comment["effect_time"] - comment["crawl_time"]
-                        ).total_seconds()
-                elif comment["is_match"] == 2:
-                    # 匹配失败
-                    match_fail_count += 1
-                else:
-                    pass
-
-            max_not_match_time = None
-            for comment in comments:
-                if comment["is_match"] == 0:
-                    max_not_match_time = comment["crawl_time"]
-                else:
-                    break
-
-            if match_success_count + match_fail_count > 0:
-                match_success_rate = match_success_count / (
-                    match_success_count + match_fail_count
-                )
-            else:
-                match_success_rate = 1
-
-            if match_success_count > 0:
-                effect_rate = effect_count / match_success_count
-            else:
-                effect_rate = 1
-
-            if effect_count > 0:
-                effect_duration = effect_duration / effect_count
-            else:
-                effect_duration = 0
-
             is_rt = 0 if neo_content.get("buy_version") == 1 else 1
             playlist_push_log = self.get_playlist_push_log_url(
                 is_rt, neo_room["id"], playlist_room
@@ -471,35 +480,32 @@ class MonitorAllRooms(object):
                 playlist_room.get("platform"),
                 playlist_room.get("shop_short_name"),
             )
+            comment_metrics = self.get_comment_metric(neo_room["id"])
 
-            result.append(
-                {
-                    "room_id": neo_room["id"],
-                    "room_status": neo_room["status"],
-                    "room_live_status": neo_room.get("live_real_status"),
-                    "room_start_type": neo_room.get("start_type"),
-                    "room_start_time": neo_room["start_time"],
-                    "room_end_time": neo_room["end_time"],
-                    "room_live_id": neo_room["live_id"],
-                    "content_id": neo_content.get("id"),
-                    "content_is_rt": is_rt,
-                    "content_status": neo_content.get("status"),
-                    "content_live_status": neo_content.get("live_status"),
-                    "playlist_push_status": playlist_room.get("push_status"),
-                    "playlist_live_id": playlist_room.get("live_id"),
-                    "playlist_live_url": playlist_room.get("live_url"),
-                    "playlist_push_log": playlist_push_log,
-                    "auth_platform_id": neo_auth.get("platform_id"),
-                    "auth_shop_name": neo_auth.get("shop_name"),
-                    "auth_short_name": neo_auth.get("short_name"),
-                    "max_not_match_time": max_not_match_time,
-                    "match_success_rate": round(match_success_rate, 2),
-                    "effect_rate": round(effect_rate, 2),
-                    "effect_duration": round(effect_duration, 2),
-                    "pop_bag_time": pop_bag_time,
-                    "cookie_expired": cookie_expired,
-                }
-            )
+            data = {
+                "room_id": neo_room["id"],
+                "room_status": neo_room["status"],
+                "room_live_status": neo_room.get("live_real_status"),
+                "room_start_type": neo_room.get("start_type"),
+                "room_start_time": neo_room["start_time"],
+                "room_end_time": neo_room["end_time"],
+                "room_live_id": neo_room["live_id"],
+                "content_id": neo_content.get("id"),
+                "content_is_rt": is_rt,
+                "content_status": neo_content.get("status"),
+                "content_live_status": neo_content.get("live_status"),
+                "playlist_push_status": playlist_room.get("push_status"),
+                "playlist_live_id": playlist_room.get("live_id"),
+                "playlist_live_url": playlist_room.get("live_url"),
+                "playlist_push_log": playlist_push_log,
+                "auth_platform_id": neo_auth.get("platform_id"),
+                "auth_shop_name": neo_auth.get("shop_name"),
+                "auth_short_name": neo_auth.get("short_name"),
+                "pop_bag_time": pop_bag_time,
+                "cookie_expired": cookie_expired,
+            }
+            data.update(comment_metrics)
+            result.append(data)
 
         return result
 
