@@ -9,6 +9,7 @@ from copy import deepcopy
 from time import sleep, time
 from pathlib import Path
 from datetime import datetime, timedelta
+from typing import List
 
 import loguru
 
@@ -62,6 +63,13 @@ class MonitorAllRooms(object):
         self.comment_crawl_time = self.check_client.get_comment_crawl_time()
 
         self.link_url = "http://114.132.162.71:3000/d/bew1ihhgk9a80b/e79b91-e68ea7-e5a4a7-e79b98-e8afa6-e68385?folderUid=aeapw6qsrjfggd&orgId=1&from=now-6h&to=now&timezone=browser&refresh=5s&var-query0=&var-room_id={}&tab=transformations"
+
+    def get_error_msg(self, errors: List[ERROR]):
+        msgs = []
+        for error in errors:
+            msgs.append(error.message)
+
+        return "\n".join(msgs)
 
     def send_alert_message(self, record):
         room_id = record["room_id"]
@@ -608,11 +616,11 @@ class MonitorAllRooms(object):
             },
         )
         if count:
-            self.alert_client.send_error_message(
-                "场次 <a href='{}'>{}</a> ({})\n因为 平台已下播 关播".format(
-                    self.link_url.format(room_id), room_id, shop_name
-                )
-            )
+            # self.alert_client.send_error_message(
+            #     "场次 <a href='{}'>{}</a> ({})\n因为 平台已下播 关播".format(
+            #         self.link_url.format(room_id), room_id, shop_name
+            #     )
+            # )
             return True
 
         return False
@@ -621,9 +629,9 @@ class MonitorAllRooms(object):
         # 记录错误
         errors = []
         try:
-            # 检查销销直播内容与直播间状态是否一致
-            if elm["room_live_status"] != elm["content_live_status"]:
-                errors.append(NEO_STATUS_INCONSISTENT)
+            # # 检查销销直播内容与直播间状态是否一致
+            # if elm["room_live_status"] != elm["content_live_status"]:
+            #     errors.append(NEO_STATUS_INCONSISTENT)
 
             # 检查直播间状态与推流状态是否一致
             if elm["room_live_status"] == 20 and elm["playlist_push_status"] != 2:
@@ -652,30 +660,30 @@ class MonitorAllRooms(object):
                     ):
                         errors.append(AUTO_CLOSE_FAIL)
 
-                # 检查互动超时
-                if elm["max_not_match_time"]:
-                    if datetime.now() > elm["max_not_match_time"] + timedelta(
-                        seconds=LONG_TIME_NO_QA.threshold
-                    ):
-                        errors.append(LONG_TIME_NO_QA)
-
-                # 检查响应率
-                if elm["effect_rate"] < QA_EFFECT_RATE_TOO_LOW.threshold:
-                    errors.append(QA_EFFECT_RATE_TOO_LOW)
-
-                # 检查平均相应时长
-                if elm["effect_duration"] > QA_EFFECT_DURATION_TOO_LONG.threshold:
-                    errors.append(QA_EFFECT_DURATION_TOO_LONG)
-
-                # 检查匹配成功率
-                if elm["match_success_rate"] < QA_MATCH_RATE_TOO_LOW.threshold:
-                    errors.append(QA_MATCH_RATE_TOO_LOW)
-
-                # 检查弹袋
-                if datetime.now() > elm["pop_bag_time"] + timedelta(
-                    seconds=LONG_TIME_NO_POP_BAG.threshold
-                ):
-                    errors.append(LONG_TIME_NO_POP_BAG)
+                # # 检查互动超时
+                # if elm["max_not_match_time"]:
+                #     if datetime.now() > elm["max_not_match_time"] + timedelta(
+                #         seconds=LONG_TIME_NO_QA.threshold
+                #     ):
+                #         errors.append(LONG_TIME_NO_QA)
+                #
+                # # 检查响应率
+                # if elm["effect_rate"] < QA_EFFECT_RATE_TOO_LOW.threshold:
+                #     errors.append(QA_EFFECT_RATE_TOO_LOW)
+                #
+                # # 检查平均相应时长
+                # if elm["effect_duration"] > QA_EFFECT_DURATION_TOO_LONG.threshold:
+                #     errors.append(QA_EFFECT_DURATION_TOO_LONG)
+                #
+                # # 检查匹配成功率
+                # if elm["match_success_rate"] < QA_MATCH_RATE_TOO_LOW.threshold:
+                #     errors.append(QA_MATCH_RATE_TOO_LOW)
+                #
+                # # 检查弹袋
+                # if datetime.now() > elm["pop_bag_time"] + timedelta(
+                #     seconds=LONG_TIME_NO_POP_BAG.threshold
+                # ):
+                #     errors.append(LONG_TIME_NO_POP_BAG)
 
             # 预约中
             if elm["room_live_status"] == 25:
@@ -724,7 +732,7 @@ class MonitorAllRooms(object):
 
             if errors:
                 elm["is_error"] = 1
-                elm["error_msg"] = "\n".join(errors)
+                elm["error_msg"] = self.get_error_msg(errors)
                 elm["status"] = 0
             else:
                 elm["is_error"] = 0
