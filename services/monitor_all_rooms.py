@@ -3,6 +3,7 @@
 # @Time : 2025/8/20 11:35
 # @File : monitor_all_rooms.py
 import sys
+import traceback
 from collections import namedtuple, defaultdict
 from copy import deepcopy
 from time import sleep, time
@@ -105,7 +106,7 @@ class MonitorAllRooms(object):
     def get_neo_rooms(self):
         # 2025-08-19 手动将所有异常状态回正，这之前的弃播不再处理
         neo_rooms = self.neoailive_client.fetch_all(
-            "SELECT * FROM neoailive_db.n_room where id in (20756,20943)"
+            "SELECT * FROM neoailive_db.n_room where has_checked = 0 and create_time > '2025-08-19'"
         )
         return [dict(elm) for elm in neo_rooms]
 
@@ -692,6 +693,9 @@ class MonitorAllRooms(object):
 if __name__ == "__main__":
     while True:
         with loguru.logger.contextualize(traceid="monitor_all_rooms"):
-            MonitorAllRooms().run()
+            try:
+                MonitorAllRooms().run()
+            except Exception as exc:
+                logger.error(f"检测失败: {traceback.format_exc()}")
 
         sleep(300)
