@@ -601,6 +601,46 @@ class MonitorAllRooms(object):
                                         {
                                             "multi_match": {
                                                 "type": "phrase",
+                                                "query": "自动关播成功",
+                                                "lenient": True,
+                                            }
+                                        },
+                                    ]
+                                }
+                            },
+                        ],
+                        "should": [],
+                        "must_not": [],
+                    }
+                },
+            },
+        )
+        if count:
+            return True
+
+        count, logs = self.es_manager.search(
+            "room-lifespan",
+            body={
+                "size": 10,
+                "sort": [{"@timestamp": {"order": "desc", "unmapped_type": "boolean"}}],
+                "version": True,
+                "query": {
+                    "bool": {
+                        "must": [],
+                        "filter": [
+                            {
+                                "bool": {
+                                    "filter": [
+                                        {
+                                            "multi_match": {
+                                                "type": "phrase",
+                                                "query": str(room_id),
+                                                "lenient": True,
+                                            }
+                                        },
+                                        {
+                                            "multi_match": {
+                                                "type": "phrase",
                                                 "query": "监测到平台关播",
                                                 "lenient": True,
                                             }
