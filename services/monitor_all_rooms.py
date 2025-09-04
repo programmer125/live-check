@@ -649,9 +649,9 @@ class MonitorAllRooms(object):
             # 直播中
             cookie_expired = elm.pop("cookie_expired")
             if elm["room_live_status"] == 20:
-                # 检查cookie
-                if cookie_expired:
-                    errors.append(COOKIE_EXPIRE)
+                # # 检查cookie
+                # if cookie_expired:
+                #     errors.append(COOKIE_EXPIRE)
 
                 # 检查自动下播
                 if elm["room_end_time"]:
