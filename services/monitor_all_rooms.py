@@ -603,13 +603,13 @@ class MonitorAllRooms(object):
                 if elm["effect_rate"] < 0.8:
                     errors.append("互动响应率低于80%")
 
-                # 检查平均相应时长
-                if elm["effect_duration"] > 15:
-                    errors.append("互动响应时长超过15秒")
-
-                # 检查匹配成功率
-                if elm["match_success_rate"] < 0.5:
-                    errors.append("互动匹配成功率低于50%")
+                # # 检查平均相应时长
+                # if elm["effect_duration"] > 15:
+                #     errors.append("互动响应时长超过15秒")
+                #
+                # # 检查匹配成功率
+                # if elm["match_success_rate"] < 0.5:
+                #     errors.append("互动匹配成功率低于50%")
 
                 # 检查弹袋
                 if elm["pop_bag_time"] < datetime.now() - timedelta(minutes=60):
