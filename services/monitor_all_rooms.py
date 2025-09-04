@@ -3,6 +3,7 @@
 # @Time : 2025/8/20 11:35
 # @File : monitor_all_rooms.py
 import sys
+from collections import namedtuple
 from copy import deepcopy
 from time import sleep, time
 from pathlib import Path
@@ -23,6 +24,12 @@ from libs.check_client import CheckClient
 
 
 logger = Logger(__file__)
+
+
+ERROR = namedtuple("ERROR", ["code", "priority", "message"])
+COOKIE_EXPIRE = ERROR(1, 1, "cookie已过期")
+NEO_STATUS_INCONSISTENT = ERROR(1, 1, "直播内容与直播间状态不一致")
+PUSH_STATUS_INCONSISTENT = ERROR(1, 1, "直播间与推流状态不一致")
 
 
 class MonitorAllRooms(object):
@@ -259,6 +266,24 @@ class MonitorAllRooms(object):
         )
         return False
 
+    def get_playlist_push_log_url(self, is_rt, room_id, playlist_room):
+        if is_rt:
+            machine_id = playlist_room.get("machine_id")
+            if machine_id == "aliyun01":
+                log_url = f"http://8.136.102.77:6860/logs/start_room_{room_id}.log"
+            elif machine_id == "aliyun02":
+                log_url = f"http://8.149.232.230:6860/logs/start_room_{room_id}.log"
+            elif machine_id == "aliyun03":
+                log_url = f"http://47.99.167.107:6860/logs/start_room_{room_id}.log"
+            elif machine_id == "aliyun04":
+                log_url = f"http://120.26.230.58:6860/logs/start_room_{room_id}.log"
+            else:
+                log_url = ""
+        else:
+            log_url = ""
+
+        return log_url
+
     def get_pop_bag_time(self, room_id):
         count, logs = self.es_manager.search(
             "room-lifespan",
@@ -438,36 +463,14 @@ class MonitorAllRooms(object):
                 effect_duration = 0
 
             is_rt = 0 if neo_content.get("buy_version") == 1 else 1
-            if is_rt:
-                machine_id = playlist_room.get("machine_id")
-                if machine_id == "aliyun01":
-                    playlist_push_log = (
-                        "http://8.136.102.77:6860/logs/start_room_{}.log".format(
-                            neo_room["id"]
-                        )
-                    )
-                elif machine_id == "aliyun02":
-                    playlist_push_log = (
-                        "http://8.149.232.230:6860/logs/start_room_{}.log".format(
-                            neo_room["id"]
-                        )
-                    )
-                elif machine_id == "aliyun03":
-                    playlist_push_log = (
-                        "http://47.99.167.107:6860/logs/start_room_{}.log".format(
-                            neo_room["id"]
-                        )
-                    )
-                elif machine_id == "aliyun04":
-                    playlist_push_log = (
-                        "http://120.26.230.58:6860/logs/start_room_{}.log".format(
-                            neo_room["id"]
-                        )
-                    )
-                else:
-                    playlist_push_log = ""
-            else:
-                playlist_push_log = ""
+            playlist_push_log = self.get_playlist_push_log_url(
+                is_rt, neo_room["id"], playlist_room
+            )
+            pop_bag_time = self.get_pop_bag_time(neo_room["id"])
+            cookie_expired = self.check_client.is_cookie_expired(
+                playlist_room.get("platform"),
+                playlist_room.get("shop_short_name"),
+            )
 
             result.append(
                 {
@@ -493,15 +496,65 @@ class MonitorAllRooms(object):
                     "match_success_rate": round(match_success_rate, 2),
                     "effect_rate": round(effect_rate, 2),
                     "effect_duration": round(effect_duration, 2),
-                    "pop_bag_time": self.get_pop_bag_time(neo_room["id"]),
-                    "cookie_expired": self.check_client.is_cookie_expired(
-                        playlist_room.get("platform"),
-                        playlist_room.get("shop_short_name"),
-                    ),
+                    "pop_bag_time": pop_bag_time,
+                    "cookie_expired": cookie_expired,
                 }
             )
 
         return result
+
+    def check_errors(self, elm):
+        # 记录错误
+        errors = []
+        try:
+            if elm["room_live_status"] != elm["content_live_status"]:
+                errors.append("销销直播内容与直播间状态不一致")
+
+            if elm["room_live_status"] == 20 and elm["playlist_push_status"] != 2:
+                errors.append("直播正常但推流异常")
+            if elm["playlist_push_status"] == 2 and elm["room_live_status"] != 20:
+                errors.append("推流正常但直播异常")
+
+            # if (
+            #     elm["room_live_id"]
+            # TODO 同一个live_id 绑定到多个直播间
+
+            # TODO 定时开播未开
+            # TODO 定时下播未下
+
+            if elm["room_live_status"] == 25:
+                if elm["room_start_time"] < datetime.now():
+                    errors.append("定时的开始时间已过期")
+
+                if elm["room_end_time"] < elm["room_start_time"] + timedelta(
+                    minutes=30
+                ):
+                    errors.append("预约的直播时长不足30分钟")
+
+            # 直播中才监测如下状态
+            if elm["room_live_status"] == 20:
+                if elm.pop("cookie_expired"):
+                    errors.append("cookie过期")
+
+                if elm["max_not_match_time"]:
+                    if datetime.now() > elm["max_not_match_time"] + timedelta(
+                        minutes=10
+                    ):
+                        errors.append("超过10分钟不互动")
+
+                # if elm["effect_rate"] < 0.8:
+                #     errors.append("互动响应率低于80%")
+                # if elm["effect_duration"] > 15:
+                #     errors.append("互动响应时长超过15秒")
+                # if elm["match_success_rate"] < 0.5:
+                #     errors.append("互动匹配成功率低于50%")
+
+                # if elm["pop_bag_time"] < datetime.now() - timedelta(minutes=60):
+                #     errors.append("60分钟内没有弹袋")
+        except Exception as exc:
+            errors.append(str(exc))
+
+        return errors
 
     def run(self):
         # 最新记录
@@ -514,49 +567,8 @@ class MonitorAllRooms(object):
                 fields=["id"], room_id=elm["room_id"]
             )
 
-            # 记录错误
-            errors = []
-            try:
-                if elm.pop("cookie_expired") and elm["room_live_status"] == 20:
-                    errors.append("cookie过期")
-                if elm["room_live_status"] != elm["content_live_status"]:
-                    errors.append("销销直播内容与直播间状态不一致")
-                if elm["room_live_status"] == 20 and elm["playlist_push_status"] != 2:
-                    errors.append("直播正常但推流异常")
-                if elm["playlist_push_status"] == 2 and elm["room_live_status"] != 20:
-                    errors.append("推流正常但直播异常")
-                if (
-                    elm["room_live_id"]
-                    and elm["playlist_live_id"]
-                    and elm["room_live_id"] != elm["playlist_live_id"]
-                ):
-                    errors.append("销销直播间live_id与推流live_id不一致")
-                if elm["room_live_status"] == 25:
-                    if elm["room_start_time"] < datetime.now():
-                        errors.append("定时的开始时间已过期")
-                    if elm["room_end_time"] < elm["room_start_time"] + timedelta(
-                        minutes=30
-                    ):
-                        errors.append("预约的直播时长不足30分钟")
-
-                # 直播中才监测如下状态
-                if elm["room_live_status"] == 20:
-                    if elm["max_not_match_time"]:
-                        if datetime.now() > elm["max_not_match_time"] + timedelta(
-                            minutes=10
-                        ):
-                            errors.append("超过10分钟不互动")
-                    # if elm["effect_rate"] < 0.8:
-                    #     errors.append("互动响应率低于80%")
-                    # if elm["effect_duration"] > 15:
-                    #     errors.append("互动响应时长超过15秒")
-                    # if elm["match_success_rate"] < 0.5:
-                    #     errors.append("互动匹配成功率低于50%")
-
-                    # if elm["pop_bag_time"] < datetime.now() - timedelta(minutes=60):
-                    #     errors.append("60分钟内没有弹袋")
-            except Exception as exc:
-                errors.append(str(exc))
+            # 校验错误
+            errors = self.check_errors(elm)
 
             if errors:
                 elm["is_error"] = 1
