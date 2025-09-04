@@ -34,7 +34,22 @@ class CheckClient(object):
         self.redis_client.hset("live-check:record_info", str(room_id), json.dumps(info))
 
     def delete_record_cache(self, room_id):
-        self.redis_client.hdel("live-check:record_info", str(room_id))
+        self.redis_client.hdel("live-check:alert_settings", str(room_id))
+
+    def get_alert_settings(self, room_id):
+        info = self.redis_client.hget("live-check:alert_settings", str(room_id))
+        if info:
+            return json.loads(info)
+        else:
+            return {}
+
+    def set_alert_settings(self, room_id, info):
+        self.redis_client.hset(
+            "live-check:alert_settings", str(room_id), json.dumps(info)
+        )
+
+    def delete_alert_settings(self, room_id):
+        self.redis_client.hdel("live-check:alert_settings", str(room_id))
 
     def is_cookie_expired(self, platform, short_name):
         if platform not in {"TB", "PDD"}:
