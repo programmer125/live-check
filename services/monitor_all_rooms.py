@@ -105,7 +105,7 @@ class MonitorAllRooms(object):
     def get_neo_rooms(self):
         # 2025-08-19 手动将所有异常状态回正，这之前的弃播不再处理
         neo_rooms = self.neoailive_client.fetch_all(
-            "SELECT * FROM neoailive_db.n_room where has_checked = 0 and create_time > '2025-08-19'"
+            "SELECT * FROM neoailive_db.n_room where id in (20756,20943)"
         )
         return [dict(elm) for elm in neo_rooms]
 
@@ -581,9 +581,10 @@ class MonitorAllRooms(object):
                 errors.append("重复推流")
 
             # 直播中
+            cookie_expired = elm.pop("cookie_expired")
             if elm["room_live_status"] == 20:
                 # 检查cookie
-                if elm.pop("cookie_expired"):
+                if cookie_expired:
                     errors.append("cookie过期")
 
                 # 检查自动下播
