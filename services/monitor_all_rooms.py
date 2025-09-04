@@ -27,10 +27,20 @@ from libs.check_client import CheckClient
 logger = Logger(__file__)
 
 
-ERROR = namedtuple("ERROR", ["code", "priority", "message"])
-COOKIE_EXPIRE = ERROR(1, 1, "cookie已过期")
-NEO_STATUS_INCONSISTENT = ERROR(1, 1, "直播内容与直播间状态不一致")
-PUSH_STATUS_INCONSISTENT = ERROR(1, 1, "直播间与推流状态不一致")
+ERROR = namedtuple("ERROR", ["code", "priority", "message", "threshold"])
+NEO_STATUS_INCONSISTENT = ERROR(1, 1, "直播内容与直播间状态不一致", 0)
+PUSH_STATUS_INCONSISTENT = ERROR(1, 1, "直播间与推流状态不一致", 0)
+PUSH_REPEAT = ERROR(1, 1, "同一个直播间多路推流", 0)
+COOKIE_EXPIRE = ERROR(1, 1, "cookie已过期", 0)
+AUTO_CLOSE_FAIL = ERROR(1, 1, "预约下播失败", 5 * 60)
+LONG_TIME_NO_QA = ERROR(1, 1, "长时间不互动", 10 * 60)
+QA_EFFECT_RATE_TOO_LOW = ERROR(1, 1, "互动响应率过低", 0.8)
+QA_EFFECT_DURATION_TOO_LONG = ERROR(1, 1, "互动平均响应时长过高", 15)
+QA_MATCH_RATE_TOO_LOW = ERROR(1, 1, "互动匹配率过低", 0.5)
+LONG_TIME_NO_POP_BAG = ERROR(1, 1, "长时间不弹袋", 60 * 60)
+AUTO_OPEN_FAIL = ERROR(1, 1, "预约开播失败", 5 * 60)
+SCHEDULE_TIME_TOO_SHORT = ERROR(1, 1, "预约直播时长过短", 30 * 60)
+NOT_NORMAL_CLOSE = ERROR(1, 1, "非正常原因关播", 0)
 
 
 class MonitorAllRooms(object):
@@ -510,7 +520,7 @@ class MonitorAllRooms(object):
 
         return result
 
-    def is_normal_close(self, room_id, content_id):
+    def is_normal_close(self, room_id, content_id, shop_name):
         count, logs = self.es_manager.search(
             "neoailive-api-service",
             body={
@@ -558,6 +568,52 @@ class MonitorAllRooms(object):
 
         if count:
             return True
+
+        count, logs = self.es_manager.search(
+            "room-lifespan",
+            body={
+                "size": 10,
+                "sort": [{"@timestamp": {"order": "desc", "unmapped_type": "boolean"}}],
+                "version": True,
+                "query": {
+                    "bool": {
+                        "must": [],
+                        "filter": [
+                            {
+                                "bool": {
+                                    "filter": [
+                                        {
+                                            "multi_match": {
+                                                "type": "phrase",
+                                                "query": str(room_id),
+                                                "lenient": True,
+                                            }
+                                        },
+                                        {
+                                            "multi_match": {
+                                                "type": "phrase",
+                                                "query": "监测到平台关播",
+                                                "lenient": True,
+                                            }
+                                        },
+                                    ]
+                                }
+                            },
+                        ],
+                        "should": [],
+                        "must_not": [],
+                    }
+                },
+            },
+        )
+        if count:
+            self.alert_client.send_error_message(
+                "场次 <a href='{}'>{}</a> ({})\n因为 平台已下播 关播".format(
+                    self.link_url.format(room_id), room_id, shop_name
+                )
+            )
+            return True
+
         return False
 
     def check_errors(self, elm, pushing_live_ids):
@@ -566,71 +622,80 @@ class MonitorAllRooms(object):
         try:
             # 检查销销直播内容与直播间状态是否一致
             if elm["room_live_status"] != elm["content_live_status"]:
-                errors.append("销销直播内容与直播间状态不一致")
+                errors.append(NEO_STATUS_INCONSISTENT)
 
             # 检查直播间状态与推流状态是否一致
             if elm["room_live_status"] == 20 and elm["playlist_push_status"] != 2:
-                errors.append("直播正常但推流异常")
+                errors.append(PUSH_STATUS_INCONSISTENT)
             if elm["playlist_push_status"] == 2 and elm["room_live_status"] != 20:
-                errors.append("推流正常但直播异常")
+                errors.append(PUSH_STATUS_INCONSISTENT)
 
             # 检查是否存在重复推流
             if (
                 len(pushing_live_ids[elm["playlist_live_id"]]) > 1
                 and elm["room_id"] in pushing_live_ids[elm["playlist_live_id"]]
             ):
-                errors.append("重复推流")
+                errors.append(PUSH_REPEAT)
 
             # 直播中
             cookie_expired = elm.pop("cookie_expired")
             if elm["room_live_status"] == 20:
                 # 检查cookie
                 if cookie_expired:
-                    errors.append("cookie过期")
+                    errors.append(COOKIE_EXPIRE)
 
                 # 检查自动下播
-                if elm["room_end_time"] and elm["room_end_time"] < datetime.now():
-                    errors.append("自动下播失败")
+                if elm["room_end_time"]:
+                    if datetime.now() > elm["room_end_time"] + timedelta(
+                        seconds=AUTO_CLOSE_FAIL.threshold
+                    ):
+                        errors.append(AUTO_CLOSE_FAIL)
 
                 # 检查互动超时
                 if elm["max_not_match_time"]:
                     if datetime.now() > elm["max_not_match_time"] + timedelta(
-                        minutes=10
+                        seconds=LONG_TIME_NO_QA.threshold
                     ):
-                        errors.append("超过10分钟不互动")
+                        errors.append(LONG_TIME_NO_QA)
 
                 # 检查响应率
-                if elm["effect_rate"] < 0.8:
-                    errors.append("互动响应率低于80%")
+                if elm["effect_rate"] < QA_EFFECT_RATE_TOO_LOW.threshold:
+                    errors.append(QA_EFFECT_RATE_TOO_LOW)
 
-                # # 检查平均相应时长
-                # if elm["effect_duration"] > 15:
-                #     errors.append("互动响应时长超过15秒")
-                #
-                # # 检查匹配成功率
-                # if elm["match_success_rate"] < 0.5:
-                #     errors.append("互动匹配成功率低于50%")
+                # 检查平均相应时长
+                if elm["effect_duration"] > QA_EFFECT_DURATION_TOO_LONG.threshold:
+                    errors.append(QA_EFFECT_DURATION_TOO_LONG)
+
+                # 检查匹配成功率
+                if elm["match_success_rate"] < QA_MATCH_RATE_TOO_LOW.threshold:
+                    errors.append(QA_MATCH_RATE_TOO_LOW)
 
                 # 检查弹袋
-                if elm["pop_bag_time"] < datetime.now() - timedelta(minutes=60):
-                    errors.append("60分钟内没有弹袋")
+                if datetime.now() > elm["pop_bag_time"] + timedelta(
+                    seconds=LONG_TIME_NO_POP_BAG.threshold
+                ):
+                    errors.append(LONG_TIME_NO_POP_BAG)
 
             # 预约中
             if elm["room_live_status"] == 25:
                 # 预约开播未开播
-                if elm["room_start_time"] < datetime.now():
-                    errors.append("预约开播未开播")
+                if elm["room_start_time"] and datetime.now() > elm[
+                    "room_start_time"
+                ] + timedelta(seconds=AUTO_OPEN_FAIL.threshold):
+                    errors.append(AUTO_OPEN_FAIL)
 
                 # 预约时长过短
                 if elm["room_end_time"] < elm["room_start_time"] + timedelta(
-                    minutes=30
+                    seconds=SCHEDULE_TIME_TOO_SHORT.threshold
                 ):
-                    errors.append("预约的直播时长不足30分钟")
+                    errors.append(SCHEDULE_TIME_TOO_SHORT)
 
             # 结束直播
             if elm["room_live_status"] == 40:
-                if not self.is_normal_close(elm["room_id"], elm["content_id"]):
-                    errors.append("非正常原因关播")
+                if not self.is_normal_close(
+                    elm["room_id"], elm["content_id"], elm["auth_shop_name"]
+                ):
+                    errors.append(NOT_NORMAL_CLOSE)
         except Exception as exc:
             errors.append(str(exc))
 
