@@ -3,7 +3,7 @@
 # @Time : 2025/8/20 11:35
 # @File : monitor_all_rooms.py
 import sys
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 from copy import deepcopy
 from time import sleep, time
 from pathlib import Path
@@ -509,54 +509,71 @@ class MonitorAllRooms(object):
 
         return result
 
-    def check_errors(self, elm):
+    def check_errors(self, elm, pushing_live_ids):
         # 记录错误
         errors = []
         try:
+            # 检查销销直播内容与直播间状态是否一致
             if elm["room_live_status"] != elm["content_live_status"]:
                 errors.append("销销直播内容与直播间状态不一致")
 
+            # 检查直播间状态与推流状态是否一致
             if elm["room_live_status"] == 20 and elm["playlist_push_status"] != 2:
                 errors.append("直播正常但推流异常")
             if elm["playlist_push_status"] == 2 and elm["room_live_status"] != 20:
                 errors.append("推流正常但直播异常")
 
-            # if (
-            #     elm["room_live_id"]
-            # TODO 同一个live_id 绑定到多个直播间
+            # 检查是否存在重复推流
+            if (
+                len(pushing_live_ids[elm["playlist_live_id"]]) > 1
+                and elm["room_id"] in pushing_live_ids[elm["playlist_live_id"]]
+            ):
+                errors.append("重复推流")
 
-            # TODO 定时开播未开
-            # TODO 定时下播未下
-
+            # 预约中
             if elm["room_live_status"] == 25:
+                # 预约开播未开播
                 if elm["room_start_time"] < datetime.now():
-                    errors.append("定时的开始时间已过期")
+                    errors.append("预约开播未开播")
 
+                # 预约时长过短
                 if elm["room_end_time"] < elm["room_start_time"] + timedelta(
                     minutes=30
                 ):
                     errors.append("预约的直播时长不足30分钟")
 
-            # 直播中才监测如下状态
+            # 直播中
             if elm["room_live_status"] == 20:
+                # 检查cookie
                 if elm.pop("cookie_expired"):
                     errors.append("cookie过期")
 
+                # 检查自动下播
+                if elm["room_end_time"] and elm["room_end_time"] < datetime.now():
+                    errors.append("自动下播失败")
+
+                # 检查互动超时
                 if elm["max_not_match_time"]:
                     if datetime.now() > elm["max_not_match_time"] + timedelta(
                         minutes=10
                     ):
                         errors.append("超过10分钟不互动")
 
-                # if elm["effect_rate"] < 0.8:
-                #     errors.append("互动响应率低于80%")
-                # if elm["effect_duration"] > 15:
-                #     errors.append("互动响应时长超过15秒")
-                # if elm["match_success_rate"] < 0.5:
-                #     errors.append("互动匹配成功率低于50%")
+                # 检查响应率
+                if elm["effect_rate"] < 0.8:
+                    errors.append("互动响应率低于80%")
 
-                # if elm["pop_bag_time"] < datetime.now() - timedelta(minutes=60):
-                #     errors.append("60分钟内没有弹袋")
+                # 检查平均相应时长
+                if elm["effect_duration"] > 15:
+                    errors.append("互动响应时长超过15秒")
+
+                # 检查匹配成功率
+                if elm["match_success_rate"] < 0.5:
+                    errors.append("互动匹配成功率低于50%")
+
+                # 检查弹袋
+                if elm["pop_bag_time"] < datetime.now() - timedelta(minutes=60):
+                    errors.append("60分钟内没有弹袋")
         except Exception as exc:
             errors.append(str(exc))
 
@@ -566,6 +583,12 @@ class MonitorAllRooms(object):
         # 最新记录
         records = self.get_records()
 
+        # 正在推流的live_id
+        pushing_live_ids = defaultdict(list)
+        for elm in records:
+            if elm["playlist_push_status"] == 2:
+                pushing_live_ids[elm["playlist_live_id"]].append(elm["room_id"])
+
         # 逐条分析
         for elm in records:
             # 历史记录
@@ -574,7 +597,7 @@ class MonitorAllRooms(object):
             )
 
             # 校验错误
-            errors = self.check_errors(elm)
+            errors = self.check_errors(elm, pushing_live_ids)
 
             if errors:
                 elm["is_error"] = 1
