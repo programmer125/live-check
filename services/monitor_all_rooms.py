@@ -565,14 +565,12 @@ class MonitorAllRooms(object):
             else:
                 elm["is_error"] = 0
                 elm["error_msg"] = ""
-                elm["status"] = 0
-
                 if elm["room_live_status"] == 40:
                     elm["status"] = 1
-                    crud.neo_room.update_by_id(
-                        record_id=elm["room_id"], data={"has_checked": 1}
-                    )
+                else:
+                    elm["status"] = 0
 
+            # 保存记录
             if history:
                 crud.neo_live_check.update_by_id(record_id=history["id"], data=elm)
             else:
@@ -580,6 +578,16 @@ class MonitorAllRooms(object):
 
             # 发送告警信息
             self.send_alert_message(elm)
+
+            # 不再监测的直播
+            if elm["status"] == 1:
+                # 设置neo记录为已校验
+                crud.neo_room.update_by_id(
+                    record_id=elm["room_id"], data={"has_checked": 1}
+                )
+                # 清理redis信息
+                self.check_client.delete_record_cache(elm["room_id"])
+                self.check_client.delete_alert_settings(elm["room_id"])
 
         logger.info(f"检测直播间 {len(records)} 个")
 
