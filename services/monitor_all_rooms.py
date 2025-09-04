@@ -509,6 +509,56 @@ class MonitorAllRooms(object):
 
         return result
 
+    def is_normal_close(self, room_id, content_id):
+        count, logs = self.es_manager.search(
+            "neoailive-api-service",
+            body={
+                "size": 10,
+                "sort": [{"@timestamp": {"order": "desc", "unmapped_type": "boolean"}}],
+                "version": True,
+                "query": {
+                    "bool": {
+                        "must": [],
+                        "filter": [
+                            {
+                                "bool": {
+                                    "filter": [
+                                        {
+                                            "multi_match": {
+                                                "type": "phrase",
+                                                "query": str(room_id),
+                                                "lenient": True,
+                                            }
+                                        },
+                                        {
+                                            "multi_match": {
+                                                "type": "phrase",
+                                                "query": str(content_id),
+                                                "lenient": True,
+                                            }
+                                        },
+                                        {
+                                            "multi_match": {
+                                                "type": "phrase",
+                                                "query": "关播直播返回",
+                                                "lenient": True,
+                                            }
+                                        },
+                                    ]
+                                }
+                            },
+                        ],
+                        "should": [],
+                        "must_not": [],
+                    }
+                },
+            },
+        )
+
+        if count:
+            return True
+        return False
+
     def check_errors(self, elm, pushing_live_ids):
         # 记录错误
         errors = []
@@ -529,18 +579,6 @@ class MonitorAllRooms(object):
                 and elm["room_id"] in pushing_live_ids[elm["playlist_live_id"]]
             ):
                 errors.append("重复推流")
-
-            # 预约中
-            if elm["room_live_status"] == 25:
-                # 预约开播未开播
-                if elm["room_start_time"] < datetime.now():
-                    errors.append("预约开播未开播")
-
-                # 预约时长过短
-                if elm["room_end_time"] < elm["room_start_time"] + timedelta(
-                    minutes=30
-                ):
-                    errors.append("预约的直播时长不足30分钟")
 
             # 直播中
             if elm["room_live_status"] == 20:
@@ -574,6 +612,23 @@ class MonitorAllRooms(object):
                 # 检查弹袋
                 if elm["pop_bag_time"] < datetime.now() - timedelta(minutes=60):
                     errors.append("60分钟内没有弹袋")
+
+            # 预约中
+            if elm["room_live_status"] == 25:
+                # 预约开播未开播
+                if elm["room_start_time"] < datetime.now():
+                    errors.append("预约开播未开播")
+
+                # 预约时长过短
+                if elm["room_end_time"] < elm["room_start_time"] + timedelta(
+                    minutes=30
+                ):
+                    errors.append("预约的直播时长不足30分钟")
+
+            # 结束直播
+            if elm["room_live_status"] == 40:
+                if not self.is_normal_close(elm["room_id"], elm["content_id"]):
+                    errors.append("非正常原因关播")
         except Exception as exc:
             errors.append(str(exc))
 
