@@ -672,11 +672,11 @@ class MonitorAllRooms(object):
             },
         )
         if count:
-            # self.alert_client.send_error_message(
-            #     "场次 <a href='{}'>{}</a> ({})\n因为 平台已下播 关播".format(
-            #         self.link_url.format(room_id), room_id, shop_name
-            #     )
-            # )
+            self.alert_client.send_error_message(
+                "场次 <a href='{}'>{}</a> ({})\n因为 平台已下播 关播".format(
+                    self.link_url.format(room_id), room_id, shop_name
+                )
+            )
             return True
 
         return False
@@ -716,30 +716,30 @@ class MonitorAllRooms(object):
                     ):
                         errors.append(AUTO_CLOSE_FAIL)
 
-                # # 检查互动超时
-                # if elm["max_not_match_time"]:
-                #     if datetime.now() > elm["max_not_match_time"] + timedelta(
-                #         seconds=LONG_TIME_NO_QA.threshold
-                #     ):
-                #         errors.append(LONG_TIME_NO_QA)
-                #
-                # # 检查响应率
-                # if elm["effect_rate"] < QA_EFFECT_RATE_TOO_LOW.threshold:
-                #     errors.append(QA_EFFECT_RATE_TOO_LOW)
-                #
-                # # 检查平均相应时长
-                # if elm["effect_duration"] > QA_EFFECT_DURATION_TOO_LONG.threshold:
-                #     errors.append(QA_EFFECT_DURATION_TOO_LONG)
-                #
-                # # 检查匹配成功率
-                # if elm["match_success_rate"] < QA_MATCH_RATE_TOO_LOW.threshold:
-                #     errors.append(QA_MATCH_RATE_TOO_LOW)
-                #
-                # # 检查弹袋
-                # if datetime.now() > elm["pop_bag_time"] + timedelta(
-                #     seconds=LONG_TIME_NO_POP_BAG.threshold
-                # ):
-                #     errors.append(LONG_TIME_NO_POP_BAG)
+                # 检查互动超时
+                if elm["max_not_match_time"]:
+                    if datetime.now() > elm["max_not_match_time"] + timedelta(
+                        seconds=LONG_TIME_NO_QA.threshold
+                    ):
+                        errors.append(LONG_TIME_NO_QA)
+
+                # 检查响应率
+                if elm["effect_rate"] < QA_EFFECT_RATE_TOO_LOW.threshold:
+                    errors.append(QA_EFFECT_RATE_TOO_LOW)
+
+                # 检查平均相应时长
+                if elm["effect_duration"] > QA_EFFECT_DURATION_TOO_LONG.threshold:
+                    errors.append(QA_EFFECT_DURATION_TOO_LONG)
+
+                # 检查匹配成功率
+                if elm["match_success_rate"] < QA_MATCH_RATE_TOO_LOW.threshold:
+                    errors.append(QA_MATCH_RATE_TOO_LOW)
+
+                # 检查弹袋
+                if datetime.now() > elm["pop_bag_time"] + timedelta(
+                    seconds=LONG_TIME_NO_POP_BAG.threshold
+                ):
+                    errors.append(LONG_TIME_NO_POP_BAG)
 
             # 预约中
             if elm["room_live_status"] == 25:
