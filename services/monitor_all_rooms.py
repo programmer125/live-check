@@ -469,9 +469,10 @@ class MonitorAllRooms(object):
             neo_auth = neo_auths.get(neo_content["outside_auth_id"], {})
             playlist_room = playlist_rooms.get(neo_room["id"], {})
 
-            # 删除直播间当做结束处理
-            if neo_room["status"] != 0:
-                neo_room["live_real_status"] = 40
+            # 删除的预约直播间当做结束处理
+            if neo_room["status"] != 0 and neo_room["live_real_status"] == 25:
+                neo_room["live_real_status"] = 50
+                neo_content["live_status"] = 50
 
             # 判定弃播原因，如果是正常原因，则修改状态为结束
             if neo_room["live_real_status"] == 80:
