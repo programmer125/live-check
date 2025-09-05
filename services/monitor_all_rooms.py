@@ -3,6 +3,7 @@
 # @Time : 2025/8/20 11:35
 # @File : monitor_all_rooms.py
 import sys
+import math
 import traceback
 from collections import defaultdict
 from copy import deepcopy
@@ -387,18 +388,16 @@ class MonitorAllRooms(object):
         # 评论相关的统计
         match_success_count = 0
         match_fail_count = 0
-        effect_count = 0
-        effect_duration = 0
+        effect_duration = []
         for comment in comments:
             if comment["is_match"] == 1:
                 # 匹配成功
                 match_success_count += 1
 
                 if comment["effect_time"]:
-                    effect_count += 1
-                    effect_duration += (
-                        comment["effect_time"] - comment["crawl_time"]
-                    ).total_seconds()
+                    effect_duration.append(
+                        (comment["effect_time"] - comment["crawl_time"]).total_seconds()
+                    )
             elif comment["is_match"] == 2:
                 # 匹配失败
                 match_fail_count += 1
@@ -420,13 +419,20 @@ class MonitorAllRooms(object):
             match_success_rate = 1
 
         if match_success_count > 0:
-            effect_rate = effect_count / match_success_count
+            effect_rate = len(effect_duration) / match_success_count
         else:
             effect_rate = 1
 
-        if effect_count > 0:
-            effect_duration = effect_duration / effect_count
-        else:
+        try:
+            # 对列表进行升序排序
+            sorted_data = sorted(effect_duration)
+            # 取前70%元素的数量
+            top_70_index = math.floor(len(effect_duration) * 0.7)
+            # 取前70%的元素
+            top_70_percent = sorted_data[:top_70_index]
+            # 计算平均值
+            effect_duration = sum(top_70_percent) / len(top_70_percent)
+        except Exception:
             effect_duration = 0
 
         return {
