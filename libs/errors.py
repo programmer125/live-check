@@ -19,22 +19,25 @@ SCHEDULE_TIME_TOO_SHORT = ERROR(112, 1, "预约直播时长过短", 30 * 60)
 NEO_STATUS_INCONSISTENT = ERROR(201, 2, "直播内容与直播间状态不一致", 0)
 
 
+TOTAL_ERRORS = [
+    AUTO_OPEN_FAIL,
+    NOT_NORMAL_CLOSE,
+    PUSH_REPEAT,
+    COOKIE_EXPIRE,
+    LONG_TIME_NO_QA,
+    QA_EFFECT_RATE_TOO_LOW,
+    QA_EFFECT_DURATION_TOO_LONG,
+    PUSH_STATUS_INCONSISTENT,
+    AUTO_CLOSE_FAIL,
+    QA_MATCH_RATE_TOO_LOW,
+    LONG_TIME_NO_POP_BAG,
+    SCHEDULE_TIME_TOO_SHORT,
+    NEO_STATUS_INCONSISTENT,
+]
+
+
 def get_error_by_code(code):
-    code_mappings = {
-        101: AUTO_OPEN_FAIL,
-        102: NOT_NORMAL_CLOSE,
-        103: PUSH_REPEAT,
-        104: COOKIE_EXPIRE,
-        105: LONG_TIME_NO_QA,
-        106: QA_EFFECT_RATE_TOO_LOW,
-        107: QA_EFFECT_DURATION_TOO_LONG,
-        108: PUSH_STATUS_INCONSISTENT,
-        109: AUTO_CLOSE_FAIL,
-        110: QA_MATCH_RATE_TOO_LOW,
-        111: LONG_TIME_NO_POP_BAG,
-        112: SCHEDULE_TIME_TOO_SHORT,
-        201: NEO_STATUS_INCONSISTENT,
-    }
+    code_mappings = {elm.code: elm for elm in TOTAL_ERRORS}
     return code_mappings[code]
 
 
@@ -63,3 +66,111 @@ def get_error_msg(errors: List[ERROR]):
         msgs.append(error.message)
 
     return "\n".join(msgs)
+
+
+def get_error_extra_elements():
+    options = []
+    for error in TOTAL_ERRORS:
+        options.append(
+            {
+                "text": {
+                    "tag": "plain_text",
+                    "content": error.message,
+                },
+                "value": str(error.code),
+                "icon": {
+                    "tag": "standard_icon",
+                    "token": "signature_outlined",
+                },
+            },
+        )
+
+    return [
+        {
+            "tag": "form",
+            "elements": [
+                {
+                    "tag": "div",
+                    "text": {
+                        "tag": "plain_text",
+                        "content": "忽略如下告警:",
+                        "text_size": "normal_v2",
+                        "text_align": "left",
+                        "text_color": "default",
+                    },
+                    "margin": "0px 0px 0px 0px",
+                },
+                {
+                    "tag": "multi_select_static",
+                    "placeholder": {"tag": "plain_text", "content": "请选择"},
+                    "options": options,
+                    "type": "default",
+                    "width": "default",
+                    "name": "MultiSelect_9ijsl8zhftv",
+                    "margin": "0px 0px 0px 0px",
+                },
+                {
+                    "tag": "column_set",
+                    "columns": [
+                        {
+                            "tag": "column",
+                            "width": "auto",
+                            "elements": [
+                                {
+                                    "tag": "button",
+                                    "text": {
+                                        "tag": "plain_text",
+                                        "content": "忽略",
+                                    },
+                                    "type": "primary",
+                                    "width": "default",
+                                    "confirm": {
+                                        "title": {
+                                            "tag": "plain_text",
+                                            "content": "确认",
+                                        },
+                                        "text": {
+                                            "tag": "plain_text",
+                                            "content": "确定忽略吗？",
+                                        },
+                                    },
+                                    "behaviors": [
+                                        {
+                                            "type": "callback",
+                                            "value": {
+                                                "callback_event": "ignore_alert_items"
+                                            },
+                                        }
+                                    ],
+                                    "form_action_type": "submit",
+                                    "name": "Button_mf4su2tf",
+                                }
+                            ],
+                            "vertical_align": "top",
+                        },
+                        {
+                            "tag": "column",
+                            "width": "auto",
+                            "elements": [
+                                {
+                                    "tag": "button",
+                                    "text": {
+                                        "tag": "plain_text",
+                                        "content": "重置",
+                                    },
+                                    "type": "default",
+                                    "width": "default",
+                                    "form_action_type": "reset",
+                                    "name": "Button_mf4su2tg",
+                                }
+                            ],
+                            "vertical_align": "top",
+                        },
+                    ],
+                },
+            ],
+            "padding": "4px 0px 4px 0px",
+            "margin": "0px 0px 0px 0px",
+            "name": "Form_mf4su2te",
+        }
+    ]

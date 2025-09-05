@@ -2,7 +2,7 @@
 # @Author : duyuxuan
 # @Time : 2025/1/14 16:38
 # @File : sync_js_spider_client.py
-from typing import Dict
+from typing import Dict, List
 
 import requests
 
@@ -34,8 +34,16 @@ class AlertClient:
         except Exception as exc:
             raise Exception("请求neoailive失败\nexc: {}\nurl: {}".format(exc, url))
 
-    def send_error_message(self, message: str) -> Dict:
-        body = {"status": 1, "title": "直播间发生异常", "description": message}
+    def send_error_message(self, message: str, extra_elements: List = None) -> Dict:
+        if not extra_elements:
+            extra_elements = []
+
+        body = {
+            "status": 1,
+            "title": "直播间发生异常",
+            "description": message,
+            "extra_elements": extra_elements,
+        }
         data = self._request(f"/alert-forward/program_alert", body)
         if data["code"] != 0:
             raise Exception("发送消息失败，{}".format(data))
