@@ -67,4 +67,4 @@ def feishu_callback(body: Dict = Body(...)):
     except:
         pass
 
-    return ResponseModel(message="回调成功")
+    return body
