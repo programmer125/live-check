@@ -95,7 +95,7 @@ class MonitorAllRooms(object):
 
                 # 发送错误
                 if time() - last_send_time > wait_time:
-                    self.alert_client.send_error_message(
+                    message_id = self.alert_client.send_error_message(
                         "场次 <a href='{}'>{}</a> ({})\n{}".format(
                             self.link_url.format(room_id),
                             room_id,
@@ -104,6 +104,7 @@ class MonitorAllRooms(object):
                         ),
                         extra_elements=get_error_extra_elements(),
                     )
+                    self.check_client.set_room_id_by_msg_id(message_id, room_id)
                     cache_info["last_send_time"] = time()
 
                 cache_info["error_codes"] = all_error_codes
@@ -114,7 +115,7 @@ class MonitorAllRooms(object):
                     time() - cache_info.get("last_send_time")
                     > self.repeat_send_interval
                 ):
-                    self.alert_client.send_error_message(
+                    message_id = self.alert_client.send_error_message(
                         "场次 <a href='{}'>{}</a> ({})\n{}".format(
                             self.link_url.format(room_id),
                             room_id,
@@ -123,6 +124,7 @@ class MonitorAllRooms(object):
                         ),
                         extra_elements=get_error_extra_elements(),
                     )
+                    self.check_client.set_room_id_by_msg_id(message_id, room_id)
                     cache_info["last_send_time"] = time()
 
                 cache_info["error_codes"] = all_error_codes

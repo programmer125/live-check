@@ -60,3 +60,16 @@ class CheckClient(object):
             return False
 
         return True
+
+    def get_room_id_by_msg_id(self, msg_id):
+        room_id = self.redis_client.get("live-check:room_id:{}".format(msg_id))
+        if room_id:
+            return int(room_id.decode())
+        else:
+            return None
+
+    def set_room_id_by_msg_id(self, msg_id, room_id):
+        # 48小时自动删除
+        self.redis_client.setex(
+            "live-check:room_id:{}".format(msg_id), 60 * 60 * 24 * 2, str(room_id)
+        )

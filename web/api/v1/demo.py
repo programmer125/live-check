@@ -4,14 +4,16 @@
 # @File : demo.py
 import traceback
 from time import time
+from typing import Dict
 
 import redis
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Body
 
 import crud
 from configs.settings import settings
 from web.schemas.response_schema import ResponseModel
 from libs.log_client import Logger
+from libs.check_client import CheckClient
 
 
 logger = Logger(__file__)
@@ -48,3 +50,18 @@ def reset_comment_crawl_time():
     except Exception as exc:
         logger.error(f"重置失败:{traceback.format_exc()}")
         return ResponseModel(code=500, message=f"重置失败：{exc}")
+
+
+@router.post("/feishu_callback")
+def feishu_callback(body: Dict = Body(...)):
+    action = body["event"]["action"]
+    message_id = body["event"]["context"]["open_message_id"]
+    if action["value"]["callback_event"] == "ignore_alert_items":
+        values = action.get("form_value", {}).get("MultiSelect_9ijsl8zhftv", [])
+        values = [int(elm) for elm in values]
+        client = CheckClient()
+        room_id = client.get_room_id_by_msg_id(message_id)
+        if room_id:
+            client.set_alert_settings(room_id, {"ignore_items": values})
+
+    return ResponseModel(message="回调成功")

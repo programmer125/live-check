@@ -47,7 +47,7 @@ class AlertClient:
         data = self._request(f"/alert-forward/program_alert", body)
         if data["code"] != 0:
             raise Exception("发送消息失败，{}".format(data))
-        return data["data"]
+        return data["data"]["message_id"]
 
     def send_success_message(self, message: str) -> Dict:
         body = {"status": 2, "title": "直播间恢复正常", "description": message}
