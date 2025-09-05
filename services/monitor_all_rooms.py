@@ -130,16 +130,17 @@ class MonitorAllRooms(object):
                 cache_info["error_codes"] = all_error_codes
                 self.check_client.set_record_cache(room_id, cache_info)
         else:
-            # 已经发送过告警信息的，发送已恢复
-            if cache_info.get("last_send_time"):
-                self.alert_client.send_success_message(
-                    "场次 <a href='{}'>{}</a> ({}) 已恢复\n{}".format(
-                        self.link_url.format(room_id),
-                        room_id,
-                        record["auth_shop_name"],
-                        cache_info.get("error_msg"),
-                    )
-                )
+            # # 已经发送过告警信息的，发送已恢复
+            # if cache_info.get("last_send_time"):
+            #     self.alert_client.send_success_message(
+            #         "场次 <a href='{}'>{}</a> ({}) 已恢复\n{}".format(
+            #             self.link_url.format(room_id),
+            #             room_id,
+            #             record["auth_shop_name"],
+            #             cache_info.get("error_msg"),
+            #         )
+            #     )
+            pass
 
     # 查找销销所有未关闭的直播，与推流未结束的直播间，取并集
     def get_neo_rooms(self):
