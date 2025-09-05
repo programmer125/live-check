@@ -741,9 +741,9 @@ class MonitorAllRooms(object):
                 if elm["effect_duration"] > QA_EFFECT_DURATION_TOO_LONG.threshold:
                     errors.append(QA_EFFECT_DURATION_TOO_LONG)
 
-                # 检查匹配成功率
-                if elm["match_success_rate"] < QA_MATCH_RATE_TOO_LOW.threshold:
-                    errors.append(QA_MATCH_RATE_TOO_LOW)
+                # # 检查匹配成功率
+                # if elm["match_success_rate"] < QA_MATCH_RATE_TOO_LOW.threshold:
+                #     errors.append(QA_MATCH_RATE_TOO_LOW)
 
                 # 检查弹袋
                 if datetime.now() > elm["pop_bag_time"] + timedelta(
