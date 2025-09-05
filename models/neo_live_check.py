@@ -38,6 +38,7 @@ class NeoLiveCheck(Base):
     pop_bag_time = Column(TIMESTAMP, nullable=True, default=None, comment="开始时间")
     push_error_count = Column(Integer, nullable=True, comment="绑定内容ID")
     is_error = Column(Integer, nullable=True, comment="绑定内容ID")
+    priority = Column(Integer, nullable=True, comment="绑定内容ID")
     error_msg = Column(String(255), default="", comment="直播间标题")
     is_ignore = Column(SmallInteger, default=0, comment="状态：0正常；1删除")
     status = Column(SmallInteger, default=0, comment="状态：0正常；1删除")

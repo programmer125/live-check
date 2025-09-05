@@ -43,10 +43,18 @@ def get_error_by_code(code):
     return code_mappings[code]
 
 
+def get_highest_priority(errors):
+    priority = 99
+    for error in errors:
+        priority = min(priority, error.priority)
+
+    return priority
+
+
 def get_send_error_wait_time(codes):
     priority = 99
     for code in codes:
-        priority = min(priority, get_error_by_code(code).priority, priority)
+        priority = min(priority, get_error_by_code(code).priority)
 
     if priority <= 1:
         return 0

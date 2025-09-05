@@ -798,6 +798,7 @@ class MonitorAllRooms(object):
 
             if errors:
                 elm["is_error"] = 1
+                elm["priority"] = get_highest_priority(errors)
                 elm["error_msg"] = get_error_msg(errors)
                 elm["status"] = 0
             else:
