@@ -689,15 +689,21 @@ class MonitorAllRooms(object):
         # 记录错误
         errors = []
         try:
-            # # 检查销销直播内容与直播间状态是否一致
-            # if elm["room_live_status"] != elm["content_live_status"]:
-            #     errors.append(NEO_STATUS_INCONSISTENT)
+            # 检查销销直播内容与直播间状态是否一致
+            if elm["room_live_status"] != elm["content_live_status"]:
+                errors.append(NEO_STATUS_INCONSISTENT)
 
-            # 检查直播间状态与推流状态是否一致
+            # 直播中但未推流
             if elm["room_live_status"] == 20 and elm["playlist_push_status"] != 2:
                 errors.append(PUSH_STATUS_INCONSISTENT)
-            if elm["playlist_push_status"] == 2 and elm["room_live_status"] != 20:
+
+            # 未直播但推流中
+            if elm["playlist_push_status"] == 2 and elm["room_live_status"] > 20:
                 errors.append(PUSH_STATUS_INCONSISTENT)
+
+            # 推流中但未开播
+            if elm["playlist_push_status"] == 2 and elm["room_live_status"] < 20:
+                errors.append(PUSHING_BUT_NOT_RUNNING)
 
             # 检查是否存在重复推流
             if (
@@ -709,9 +715,9 @@ class MonitorAllRooms(object):
             # 直播中
             cookie_expired = elm.pop("cookie_expired")
             if elm["room_live_status"] == 20:
-                # # 检查cookie
-                # if cookie_expired:
-                #     errors.append(COOKIE_EXPIRE)
+                # 检查cookie
+                if cookie_expired:
+                    errors.append(COOKIE_EXPIRE)
 
                 # 检查自动下播
                 if elm["room_end_time"]:
