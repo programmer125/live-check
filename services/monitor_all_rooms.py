@@ -4,12 +4,11 @@
 # @File : monitor_all_rooms.py
 import sys
 import traceback
-from collections import namedtuple, defaultdict
+from collections import defaultdict
 from copy import deepcopy
 from time import sleep, time
 from pathlib import Path
 from datetime import datetime, timedelta
-from typing import List
 
 import loguru
 
@@ -23,26 +22,10 @@ from libs.sync_mysql_client import MysqlClient
 from libs.log_client import Logger
 from libs.sync_alert_client import AlertClient
 from libs.check_client import CheckClient
+from libs.errors import *
 
 
 logger = Logger(__file__)
-
-
-ERROR = namedtuple("ERROR", ["code", "priority", "message", "threshold"])
-
-AUTO_OPEN_FAIL = ERROR(101, 1, "预约开播失败", 5 * 60)
-NOT_NORMAL_CLOSE = ERROR(102, 1, "非正常原因关播", 0)
-PUSH_REPEAT = ERROR(103, 1, "同一个直播间多路推流", 0)
-COOKIE_EXPIRE = ERROR(104, 1, "cookie已过期", 0)
-LONG_TIME_NO_QA = ERROR(105, 1, "长时间不互动", 10 * 60)
-QA_EFFECT_RATE_TOO_LOW = ERROR(106, 1, "互动响应率过低", 0.8)
-QA_EFFECT_DURATION_TOO_LONG = ERROR(107, 1, "互动平均响应时长过高", 15)
-PUSH_STATUS_INCONSISTENT = ERROR(108, 1, "直播间与推流状态不一致", 0)
-AUTO_CLOSE_FAIL = ERROR(109, 1, "预约下播失败", 5 * 60)
-QA_MATCH_RATE_TOO_LOW = ERROR(110, 1, "互动匹配率过低", 0.5)
-LONG_TIME_NO_POP_BAG = ERROR(111, 1, "长时间不弹袋", 60 * 60)
-SCHEDULE_TIME_TOO_SHORT = ERROR(112, 1, "预约直播时长过短", 30 * 60)
-NEO_STATUS_INCONSISTENT = ERROR(201, 2, "直播内容与直播间状态不一致", 0)
 
 
 class MonitorAllRooms(object):
@@ -64,62 +47,95 @@ class MonitorAllRooms(object):
 
         self.link_url = "http://114.132.162.71:3000/d/bew1ihhgk9a80b/e79b91-e68ea7-e5a4a7-e79b98-e8afa6-e68385?folderUid=aeapw6qsrjfggd&orgId=1&from=now-6h&to=now&timezone=browser&refresh=5s&var-query0=&var-room_id={}&tab=transformations"
 
-    def get_error_msg(self, errors: List[ERROR]):
-        msgs = []
+        self.repeat_send_interval = 60 * 60
+
+    def filter_ignore_errors(self, room_id, errors: List[ERROR]):
+        alert_settings = self.check_client.get_alert_settings(room_id)
+        ignore_items = alert_settings.get("ignore_items", [])
+
+        alert_errors = []
         for error in errors:
-            msgs.append(error.message)
+            if error.code in ignore_items:
+                continue
 
-        return "\n".join(msgs)
+            alert_errors.append(error)
 
-    def send_alert_message(self, record):
+        return alert_errors
+
+    def send_alert_message(self, record, errors):
         room_id = record["room_id"]
         cache_info = self.check_client.get_record_cache(room_id)
+
         if record["is_error"] == 1:
-            if cache_info:
+            # 过滤已被忽略的错误项
+            alert_errors = self.filter_ignore_errors(room_id, errors)
+
+            # 无需告警
+            if not alert_errors:
+                return
+
+            all_error_codes = get_error_codes(errors)
+            curr_error_codes = get_error_codes(alert_errors)
+            last_error_codes = cache_info.get("error_codes", [])
+            new_error_codes = list(set(curr_error_codes) - set(last_error_codes))
+
+            if new_error_codes:
+                # 获取首次出错时间
+                if not cache_info.get("first_error_time"):
+                    cache_info["first_error_time"] = time()
+
+                # 获取上次发送时间
                 if cache_info.get("last_send_time"):
-                    # 已经发送过的记录，每小时提醒一次
-                    if time() - cache_info.get("last_send_time") > 60 * 60:
-                        self.alert_client.send_error_message(
-                            "场次 <a href='{}'>{}</a> ({})\n{}".format(
-                                self.link_url.format(room_id),
-                                room_id,
-                                record["auth_shop_name"],
-                                record["error_msg"],
-                            )
-                        )
-                        cache_info["last_send_time"] = time()
-                        cache_info["error_msg"] = record["error_msg"]
-                        self.check_client.set_record_cache(room_id, cache_info)
+                    last_send_time = cache_info["last_send_time"]
                 else:
-                    # 首次出错持续20分钟后发送提醒
-                    if time() - cache_info.get("first_time") > 60 * 20:
-                        self.alert_client.send_error_message(
-                            "场次 <a href='{}'>{}</a> ({})\n{}".format(
-                                self.link_url.format(room_id),
-                                room_id,
-                                record["auth_shop_name"],
-                                record["error_msg"],
-                            )
+                    last_send_time = cache_info["first_error_time"]
+
+                # 获取错误等待时间
+                wait_time = get_send_error_wait_time(new_error_codes)
+
+                # 发送错误
+                if time() - last_send_time > wait_time:
+                    self.alert_client.send_error_message(
+                        "场次 <a href='{}'>{}</a> ({})\n{}".format(
+                            self.link_url.format(room_id),
+                            room_id,
+                            record["auth_shop_name"],
+                            record["error_msg"],
                         )
-                        cache_info["last_send_time"] = time()
-                        cache_info["error_msg"] = record["error_msg"]
-                        self.check_client.set_record_cache(room_id, cache_info)
+                    )
+                    cache_info["last_send_time"] = time()
+
+                cache_info["error_codes"] = all_error_codes
+                self.check_client.set_record_cache(room_id, cache_info)
             else:
-                self.check_client.set_record_cache(
-                    room_id, {"first_time": time(), "error_msg": record["error_msg"]}
-                )
+                # 已经发送过的记录，每隔一段时间重新提醒
+                if (
+                    time() - cache_info.get("last_send_time")
+                    > self.repeat_send_interval
+                ):
+                    self.alert_client.send_error_message(
+                        "场次 <a href='{}'>{}</a> ({})\n{}".format(
+                            self.link_url.format(room_id),
+                            room_id,
+                            record["auth_shop_name"],
+                            record["error_msg"],
+                        )
+                    )
+                    cache_info["last_send_time"] = time()
+
+                cache_info["error_codes"] = all_error_codes
+                self.check_client.set_record_cache(room_id, cache_info)
         else:
-            if cache_info:
-                # if cache_info.get("last_send_time"):
-                #     self.alert_client.send_success_message(
-                #         "场次 <a href='{}'>{}</a> ({}) 已恢复\n{}".format(
-                #             self.link_url.format(room_id),
-                #             room_id,
-                #             record["auth_shop_name"],
-                #             cache_info.get("error_msg"),
-                #         )
-                #     )
-                self.check_client.delete_record_cache(room_id)
+            # 已经发送过告警信息的，发送已恢复
+            if cache_info.get("last_send_time"):
+                self.alert_client.send_success_message(
+                    "场次 <a href='{}'>{}</a> ({}) 已恢复\n{}".format(
+                        self.link_url.format(room_id),
+                        room_id,
+                        record["auth_shop_name"],
+                        cache_info.get("error_msg"),
+                    )
+                )
 
     # 查找销销所有未关闭的直播，与推流未结束的直播间，取并集
     def get_neo_rooms(self):
@@ -772,7 +788,7 @@ class MonitorAllRooms(object):
 
             if errors:
                 elm["is_error"] = 1
-                elm["error_msg"] = self.get_error_msg(errors)
+                elm["error_msg"] = get_error_msg(errors)
                 elm["status"] = 0
             else:
                 elm["is_error"] = 0
@@ -789,7 +805,7 @@ class MonitorAllRooms(object):
                 crud.neo_live_check.create(data=elm)
 
             # 发送告警信息
-            self.send_alert_message(elm)
+            self.send_alert_message(elm, errors)
 
             # 不再监测的直播
             if elm["status"] == 1:

@@ -28,7 +28,7 @@ class CheckClient(object):
         if info:
             return json.loads(info)
         else:
-            return None
+            return {}
 
     def set_record_cache(self, room_id, info):
         self.redis_client.hset("live-check:record_info", str(room_id), json.dumps(info))
