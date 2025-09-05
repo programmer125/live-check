@@ -101,7 +101,8 @@ class MonitorAllRooms(object):
                             room_id,
                             record["auth_shop_name"],
                             record["error_msg"],
-                        )
+                        ),
+                        extra_elements=get_error_extra_elements(),
                     )
                     cache_info["last_send_time"] = time()
 
@@ -119,7 +120,8 @@ class MonitorAllRooms(object):
                             room_id,
                             record["auth_shop_name"],
                             record["error_msg"],
-                        )
+                        ),
+                        extra_elements=get_error_extra_elements(),
                     )
                     cache_info["last_send_time"] = time()
 
